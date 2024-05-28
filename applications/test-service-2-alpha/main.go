@@ -25,6 +25,7 @@ import (
 	"github.com/x-ethr/server/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -82,18 +83,20 @@ func main() {
 	mux.Register("GET /health", server.Health)
 
 	mux.Register("GET /", func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s - main", service))
-
+		attributes := trace.WithAttributes(attribute.String("component", r.URL.Path))
+		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s-request-handler", service), trace.WithSpanKind(trace.SpanKindServer), trace.WithLinks(trace.LinkFromContext(ctx)), attributes)
 		defer span.End()
 
 		channel := make(chan map[string]interface{}, 1)
 
-		var process = func(ctx context.Context, span trace.Span, c chan map[string]interface{}) {
+		var process = func(ctx context.Context, attributes trace.SpanStartEventOption, c chan map[string]interface{}) {
 			var a, b map[string]interface{}
 
-			client := http.Client{Timeout: time.Second * 15, Transport: otelhttp.NewTransport(http.DefaultTransport)}
+			client := otelhttp.DefaultClient
 
 			{
+				ctx, span := tracer.Start(ctx, fmt.Sprintf("%s - request - test-service-2-alpha-derivative-1", service), trace.WithSpanKind(trace.SpanKindClient), trace.WithLinks(trace.LinkFromContext(ctx)), attributes)
+				defer span.End()
 				request, e := http.NewRequestWithContext(ctx, "GET", "http://test-service-2-alpha-derivative-1.development.svc.cluster.local:8080", nil)
 				if e != nil {
 					slog.ErrorContext(ctx, "Error While Calling Internal Service", slog.String("error", e.Error()))
@@ -103,6 +106,7 @@ func main() {
 
 				headers.Propagate(r, request)
 
+				// response, e := otelhttp.Get(ctx, "http://test-service-2-alpha-derivative-1.development.svc.cluster.local:8080")
 				response, e := client.Do(request)
 				if e != nil {
 					slog.ErrorContext(ctx, "Error Generating Response from Internal Service", slog.String("error", e.Error()))
@@ -117,6 +121,8 @@ func main() {
 			}
 
 			{
+				ctx, span := tracer.Start(ctx, fmt.Sprintf("%s - request - test-service-2-alpha-derivative-2", service), trace.WithSpanKind(trace.SpanKindClient), trace.WithLinks(trace.LinkFromContext(ctx)), attributes)
+				defer span.End()
 				request, e := http.NewRequestWithContext(ctx, "GET", "http://test-service-2-alpha-derivative-2.development.svc.cluster.local:8080", nil)
 				if e != nil {
 					slog.ErrorContext(ctx, "Error While Calling Internal Service", slog.String("error", e.Error()))
@@ -126,13 +132,8 @@ func main() {
 
 				headers.Propagate(r, request)
 
+				// response, e := otelhttp.Get(ctx, "http://test-service-2-alpha-derivative-2.development.svc.cluster.local:8080")
 				response, e := client.Do(request)
-				if e != nil {
-					slog.ErrorContext(ctx, "Error Generating Response from Internal Service", slog.String("error", e.Error()))
-					http.Error(w, "exception generating response from internal service", http.StatusInternalServerError)
-					return
-				}
-
 				defer response.Body.Close()
 
 				if e := json.NewDecoder(response.Body).Decode(&b); e != nil {
@@ -158,7 +159,7 @@ func main() {
 			c <- payload
 		}
 
-		go process(ctx, span, channel)
+		go process(ctx, attributes, channel)
 
 		select {
 		case <-ctx.Done():
