@@ -34,7 +34,7 @@
 
 ###### External-Provider(s)
 
-***Note*** - setup relating to a valid AWS account and related requirements are far outside scope of the following project.
+Note that setup relating to a valid AWS account and related requirements are far outside scope of the following project.
 
 - [Flux local setup](https://fluxcd.io/flux/get-started/)
 
