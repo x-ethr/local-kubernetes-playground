@@ -7,6 +7,10 @@
 > 
 > If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply following the [usage](#usage) section.
 
+## Example
+
+***The Playground's Deployed Service Mesh***
+
 ![istio-example](./.documentation/example-istio-service-mesh.png)
 
 ## Requirements
