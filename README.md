@@ -98,17 +98,23 @@
 
 ###### API Gateway
 
+*The following command will port-forward the gateway's configured port `80` and expose it on `localhost:8080`.*
+
 ```bash
-kubectl port-forward --namespace development service 
+kubectl port-forward --namespace development services/api-gateway-istio 8080:80
 ```
 
 ###### Kiali Dashboard
+
+*The following command will expose the `kiali` service and open a browser to its dashboard.*
 
 ```bash
 istioctl dashboard kiali
 ```
 
 ###### Tracing Dashboard (Jaeger)
+
+*The following command will expose the `jaeger` service and open a browser to its dashboard.*
 
 ```bash
 istioctl dashboard jaeger
