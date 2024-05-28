@@ -1,0 +1,19 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+containerdConfigPatches:
+    - |-
+        [plugins."io.containerd.grpc.v1.cri".registry]
+          config_path = "/etc/containerd/certs.d"
+nodes:
+    -   role: control-plane
+        image: kindest/node:v1.29.2
+    -   role: worker
+        image: kindest/node:v1.29.2
+    -   role: worker
+        image: kindest/node:v1.29.2
+    -   role: worker
+        image: kindest/node:v1.29.2
+networking:
+    ipFamily: ipv4
+    apiServerAddress: "127.0.0.1"
+    apiServerPort: 65300

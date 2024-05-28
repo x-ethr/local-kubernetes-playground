@@ -1,0 +1,152 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: test-service-2 # --> test-service-2.<namespace>.svc.cluster.local
+    labels:
+        app: test-service-2
+        service: test-service-2
+spec:
+    selector:
+        app: test-service-2
+    ports:
+        -   port: 8080
+            targetPort: 8080
+            name: http
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+    name: test-service-2
+    labels:
+        account: test-service-2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: test-service-2
+    labels:
+        app: test-service-2
+        version: v1
+        service: test-service-2
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: test-service-2
+            version: v1
+            service: test-service-2
+    template:
+        metadata:
+            labels:
+                app: test-service-2
+                version: v1
+                service: test-service-2
+                sidecar.istio.io/inject: "true"
+        spec:
+            serviceAccountName: test-service-2
+            containers:
+                -   name: test-service-2
+                    livenessProbe:
+                        httpGet:
+                            port: 8080
+                            path: /health
+                        initialDelaySeconds: 5
+                        periodSeconds: 5
+                    image: service:latest
+                    imagePullPolicy: Always
+                    ports:
+                        -   containerPort: 8080
+                    # envFrom:
+                    #     -   configMapRef:
+                    #             name: postgres
+                    env:
+                        -   name: CI
+                            value: "true"
+                        -   name: LOCAL_POD_SERVICE_ACCOUNT
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: spec.serviceAccountName
+                        -   name: LOCAL_POD_IP
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: status.podIP
+                        -   name: LOCAL_NODE_NAME
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: spec.nodeName
+                        -   name: LOCAL_POD_NAME
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: metadata.name
+                        -   name: LOCAL_POD_NAMESPACE
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: metadata.namespace
+                        -   name: LOCAL_NAMESPACE
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: metadata.namespace
+                        -   name: NAMESPACE
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: metadata.namespace
+                        -   name: VERSION
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: metadata.labels['version']
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+    name: test-service-2
+    labels:
+        sidecar.istio.io/inject: "true"
+spec:
+    parentRefs:
+        -   name: api-gateway
+            kind: Gateway
+            namespace: development
+            group: "gateway.networking.k8s.io"
+    rules:
+        -   matches:
+                -   path:
+                        type: PathPrefix
+                        value: /v1/test-service-2
+            backendRefs:
+                -   name: test-service-2
+                    kind: Service
+                    port: 8080
+
+#---
+#apiVersion: autoscaling/v2
+#kind: HorizontalPodAutoscaler
+#metadata:
+#    name: gateway
+#spec:
+#    # Match the generated Deployment by reference
+#    # Note: Do not use `kind: Gateway`.
+#    scaleTargetRef:
+#        apiVersion: apps/v1
+#        kind: Deployment
+#        name: gateway-istio
+#    minReplicas: 2
+#    maxReplicas: 5
+#    metrics:
+#        - type: Resource
+#          resource:
+#              name: cpu
+#              target:
+#                  type: Utilization
+#                  averageUtilization: 50
+#---
+#apiVersion: policy/v1
+#kind: PodDisruptionBudget
+#metadata:
+#    name: gateway
+#spec:
+#    minAvailable: 1
+#    selector:
+#        # Match the generated Deployment by label
+#        matchLabels:
+#            gateway.networking.k8s.io/gateway-name: gateway

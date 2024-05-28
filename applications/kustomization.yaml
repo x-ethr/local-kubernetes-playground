@@ -1,0 +1,12 @@
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+namespace: development
+commonAnnotations:
+    environment: development
+resources:
+    - namespace.yaml
+    - api-gateway.yaml
+    - peer-authentication.yaml
+    - telemetry.yaml
+    - server-passthrough-filter.yaml
+    - server-filter.yaml
