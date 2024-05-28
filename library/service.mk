@@ -57,7 +57,7 @@ patch-upgrade 	= $(major).$(minor).$(shell expr $(patch) + 1)
 prepare:
 	@$(information) Executing Module Vendoring
 	@go get -u github.com/x-ethr/server
-	@go mod tidy && go mod vendor
+	@go mod tidy
 	@$(ok) Build Preparation
 	@printf "\n"
 
