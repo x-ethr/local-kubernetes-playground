@@ -1,12 +1,21 @@
 # `local-kubernetes-playground`
 
+> [!IMPORTANT]
+> The following project requires an expansive amount of knowledge around cloud-providers (AWS), development, kubernetes, and overall
+> systems. While the guide can be followed step-by-step to produce a fully functioning working cluster, there are [requirements](#requirements)
+> that would be difficult for beginners to 1. understand, 2. setup, 3. debug.
+> 
+> If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply following the [usage](#usage) section.
+
 ![istio-example](./.documentation/example-istio-service-mesh.png)
 
 ## Requirements
 
 > [!IMPORTANT]
-> The following guide was vetted on a Mac Studio, M1 Max 2022 on MacOS, Sonoma 14.5. Other systems are likely subject to
+> Usage, requirements, and documentation was vetted on a Mac Studio, M1 Max 2022 on MacOS, Sonoma 14.5. Other systems are likely subject to
 > incompatibilities.
+
+###### System
 
 - MacOS with Administrative Privileges
 - [`cloud-provider-kind`](https://github.com/kubernetes-sigs/cloud-provider-kind)
@@ -16,6 +25,18 @@
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [`istioctl`](https://istio.io/latest/docs/setup/getting-started/)
 - [`ethr-cli`](https://github.com/x-ethr/ethr-cli)
+- [`aws-cli`](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- [`flux`](https://fluxcd.io/flux/get-started/)
+
+###### External-Provider(s)
+
+- [Flux local setup](https://fluxcd.io/flux/get-started/)
+
+- GitHub PAT
+
+- A valid AWS account
+  - A configured `default` profile
+  - Secrets in AWS SecretsManager for local development purposes. See the scripts' sections in [usage](#usage) for details.
 
 ## Usage
 
