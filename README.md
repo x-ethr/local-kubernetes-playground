@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > The following project requires an expansive amount of knowledge around cloud-providers (AWS), development, kubernetes, and overall
-> systems. While the guide can be followed step-by-step to produce a fully functioning working cluster, there are [requirements](#requirements)
+> systems. While the guide can be followed step-by-step to produce a fully functioning cluster, there are [requirements](#requirements)
 > that would be difficult for beginners to 1. understand, 2. setup, 3. debug.
 > 
 > If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply following the [usage](#usage) section.
