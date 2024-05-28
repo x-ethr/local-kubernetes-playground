@@ -1,5 +1,7 @@
 # `local-kind-cluster`
 
+![istio-example](./.documentation/example-istio-service-mesh.png)
+
 ## Contribution
 
 Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional details.
