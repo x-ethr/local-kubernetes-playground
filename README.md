@@ -2,11 +2,11 @@
 
 ![istio-example](./.documentation/example-istio-service-mesh.png)
 
+## Requirements
+
 > [!IMPORTANT]
 > The following guide was vetted on a Mac Studio, M1 Max 2022 on MacOS, Sonoma 14.5. Other systems are likely subject to
 > incompatibilities.
-
-## Requirements
 
 - MacOS with Administrative Privileges
 - [`cloud-provider-kind`](https://github.com/kubernetes-sigs/cloud-provider-kind)
