@@ -1,0 +1,3 @@
+[submodule "vendors/cluster-management"]
+	path = vendors/cluster-management
+	url = https://github.com/x-ethr/cluster-management
