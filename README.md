@@ -1,4 +1,4 @@
-# `local-kind-cluster`
+# `local-kubernetes-playground`
 
 ![istio-example](./.documentation/example-istio-service-mesh.png)
 
