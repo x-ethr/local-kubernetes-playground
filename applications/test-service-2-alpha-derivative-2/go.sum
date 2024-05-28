@@ -21,8 +21,8 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/x-ethr/color v0.1.2 h1:WWmm84jPxr95QzDZOzkmB/cXmqX/RMgG/r8WFlvom+E=
 github.com/x-ethr/color v0.1.2/go.mod h1:w7Mcz7AQKVhPSadl5fsZ0J43P9V4Pew0H6tbE7FCmOs=
-github.com/x-ethr/server v0.1.17 h1:jdbNchTB2eWsiyOQ8RDaqZAbCIX79hakQ3lWhgzM4yQ=
-github.com/x-ethr/server v0.1.17/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
+github.com/x-ethr/server v0.1.21 h1:5jQSXUysGDraOAh1tiilu5KMLFSLGWKov1Frl0I4zMg=
+github.com/x-ethr/server v0.1.21/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
 github.com/x-ethr/text v0.1.17 h1:h+RA+a2SlkGJO2RL+iBKIAx8uNHAJNWvKKktcEBHXPk=
 github.com/x-ethr/text v0.1.17/go.mod h1:1D6l+tvaNcEw7HRRVJb/PgVqdpj1SFdPp/Hkbrbfc5g=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0 h1:9l89oX4ba9kHbBol3Xin3leYJ+252h0zszDtBwyKe2A=

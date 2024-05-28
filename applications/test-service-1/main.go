@@ -23,7 +23,6 @@ import (
 	"github.com/x-ethr/server/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -47,7 +46,7 @@ var ctx, cancel = context.WithCancel(context.Background())
 var port = flag.String("port", "8080", "Server Listening Port.")
 
 var (
-	tracer = otel.Tracer(service) // tracer
+	tracer = otel.Tracer(service)
 )
 
 func main() {
@@ -81,8 +80,9 @@ func main() {
 	mux.Register("GET /health", server.Health)
 
 	mux.Register(fmt.Sprintf("GET /%s/%s", prefix[version], service), func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s - main", service))
-
+		ctx := r.Context()
+		attributes := trace.WithAttributes(telemetry.Resources(ctx, service, version).Attributes()...)
+		ctx, span := tracer.Start(ctx, fmt.Sprintf("%s - main", service), trace.WithSpanKind(trace.SpanKindServer), trace.WithAttributes(attribute.String("workload", service), attribute.String("component", fmt.Sprintf("%s-%s", service, "example-component"))), attributes)
 		defer span.End()
 
 		channel := make(chan map[string]interface{}, 1)
@@ -97,8 +97,6 @@ func main() {
 					"api-version": middleware.New().Version().Value(ctx).API,
 				},
 			}
-
-			span.SetAttributes(attribute.String("path", path))
 
 			c <- payload
 		}

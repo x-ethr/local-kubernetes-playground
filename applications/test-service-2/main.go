@@ -25,7 +25,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -84,6 +83,9 @@ func main() {
 
 	mux.Register(fmt.Sprintf("GET /%s/%s", prefix[version], service), func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s - main", service))
+		span.SetAttributes(attribute.String("workload", service))
+		span.SetAttributes(telemetry.Resources(ctx, service, version).Attributes()...)
+		span.SetAttributes(attribute.String("component", fmt.Sprintf("%s-%s", service, "example-component")))
 
 		defer span.End()
 
@@ -122,13 +124,14 @@ func main() {
 	})
 
 	mux.Register(fmt.Sprintf("GET /%s/%s/alpha", prefix[version], service), func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s - alpha", service))
-
+		ctx := r.Context()
+		attributes := trace.WithAttributes(telemetry.Resources(ctx, service, version).Attributes()...)
+		ctx, span := tracer.Start(ctx, fmt.Sprintf("%s - main", service), trace.WithSpanKind(trace.SpanKindServer), trace.WithAttributes(attribute.String("workload", service), attribute.String("component", fmt.Sprintf("%s-%s", service, "example-component"))), attributes)
 		defer span.End()
 
 		channel := make(chan map[string]interface{}, 1)
 		var process = func(ctx context.Context, span trace.Span, c chan map[string]interface{}) {
-			client := http.Client{Timeout: time.Second * 15, Transport: otelhttp.NewTransport(http.DefaultTransport)}
+			client := otelhttp.DefaultClient
 			request, e := http.NewRequestWithContext(ctx, "GET", "http://test-service-2-alpha.development.svc.cluster.local:8080", nil)
 			if e != nil {
 				slog.ErrorContext(ctx, "Error While Calling Internal Service", slog.String("error", e.Error()))
@@ -138,6 +141,7 @@ func main() {
 
 			headers.Propagate(r, request)
 
+			// response, e := otelhttp.Get(ctx, "http://test-service-2-alpha.development.svc.cluster.local:8080")
 			response, e := client.Do(request)
 			if e != nil {
 				slog.ErrorContext(ctx, "Error Generating Response from Internal Service", slog.String("error", e.Error()))
@@ -163,8 +167,6 @@ func main() {
 					"response":    structure,
 				},
 			}
-
-			span.SetAttributes(attribute.String("path", path))
 
 			c <- payload
 		}
