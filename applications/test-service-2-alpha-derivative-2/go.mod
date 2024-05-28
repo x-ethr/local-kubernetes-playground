@@ -3,7 +3,7 @@ module test-service-2-alpha-derivative-2
 go 1.22.3
 
 require (
-	github.com/x-ethr/server v0.1.12
+	github.com/x-ethr/server v0.1.17
 	go.opentelemetry.io/otel v1.27.0
 	go.opentelemetry.io/otel/trace v1.27.0
 )

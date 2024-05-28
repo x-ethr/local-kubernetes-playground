@@ -11,7 +11,7 @@
 
 ***The Playground's Deployed Service Mesh***
 
-![istio-example](./.documentation/example-istio-service-mesh.png)
+![istio-example](./.documentation/example-istio-service-mesh-2.png)
 
 ## Requirements
 
@@ -122,7 +122,17 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     ```
     - *Note*: the Makefile targets in the ./applications directory will version bump all services, and requires a running container registry: `localhost:5050`. 
 
-### Istio (Service-Mesh)
+### Service-Mesh
+
+*In order to view tracing and network traffic, issue the following command(s)*:
+
+```bash
+for i in $(seq 1 250); do
+    curl "http://localhost:8080/v1/test-service-1"
+    curl "http://localhost:8080/v1/test-service-2"
+    curl "http://localhost:8080/v1/test-service-2/alpha"
+done
+```
 
 ###### API Gateway
 
