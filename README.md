@@ -66,7 +66,7 @@
     ```bash
     git submodule update --remote --recursive
     ```
-6. Add `kustomization.yaml` to new cluster directory.
+6. Add `kustomization.yaml` to new cluster directory (only applicable during first-time cluster setup).
     ```bash
     cat << EOF > ./vendors/cluster-management/clusters/local/kustomization.yaml
     apiVersion: kustomize.config.k8s.io/v1beta1
@@ -74,7 +74,7 @@
     resources: []
     EOF
     ```
-7. Optionally, update the `Kustomization.flux-system.spec.interval`.
+7. Optionally, update the `Kustomization.flux-system.spec.interval` (changes each time a local cluster is bootstrapped).
 8. Push local changes to `vendors` submodules.
     ```bash
     git submodule foreach "git add . && git commit --message \"Git Submodule Update(s)\" && git push -u origin HEAD:main" 
