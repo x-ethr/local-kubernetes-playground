@@ -48,8 +48,8 @@
     ```
 4. Bootstrap.
     ```bash
-    flux bootstrap github --repository "https://github.com/iac-factory/cluster-management" \
-        --owner "iac-factory" \
+    flux bootstrap github --repository "https://github.com/x-ethr/cluster-management" \
+        --owner "x-ethr" \
         --private "false" \
         --personal "false" \
         --path "clusters/local"
@@ -75,6 +75,10 @@
     ```bash
     bash ./scripts/registry.bash
     ```
+
+> [!NOTE]
+> During the first minute or two, there may be a few warnings that surface. Due to Kubernetes reconciliation, all errors
+> should resolve by minute three or four.
 
 ## Istio
 
