@@ -22,6 +22,7 @@
 ###### System
 
 - MacOS with Administrative Privileges
+- [`go`](https://go.dev/doc/install)
 - [`cloud-provider-kind`](https://github.com/kubernetes-sigs/cloud-provider-kind)
 - [Homebrew](https://brew.sh)
 - [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
