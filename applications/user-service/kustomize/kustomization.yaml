@@ -1,0 +1,33 @@
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+namespace: user-service
+images:
+    - name: service:latest
+      newName: localhost:5050/user-service
+      newTag: 0.0.79
+resources:
+    - namespace.yaml
+    - database-persistent-volume.yaml
+    - database-persistent-volume-claim.yaml
+    - database-deployment.yaml
+    - database-service.yaml
+    - application.yaml
+secretGenerator:
+    - namespace: user-service
+      name: postgres-application-secret
+      files:
+        - ./.secrets/PGUSER
+        - ./.secrets/PGPASSWORD
+        - ./.secrets/PGDATABASE
+      options:
+        disableNameSuffixHash: true
+      type: Opaque
+    - namespace: user-service
+      name: postgres-database-secret
+      files:
+        - ./.secrets/POSTGRES_USER
+        - ./.secrets/POSTGRES_PASSWORD
+        - ./.secrets/POSTGRES_DB
+      options:
+        disableNameSuffixHash: true
+      type: Opaque

@@ -9,7 +9,7 @@
 DROP TABLE IF EXISTS "User" CASCADE;
 
 DROP TYPE IF EXISTS "User-Verification-Status";
-create type "User-Verification-Status" AS ENUM (
+create type "User-Verification-Status" AS ENUM IF NOT EXISTS (
     'VERIFIED',
     'PENDING',
     'TIMEOUT',

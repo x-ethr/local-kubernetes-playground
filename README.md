@@ -116,7 +116,32 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     ```bash
     kubectl apply --kustomize ./applications 
     ```
-12. Deploy all service(s).
+12. Deploy the database.
+    ```bash
+    mkdir -p ./kustomize/postgres/.secrets
+
+    printf "%s" "database" > ./kustomize/postgres/.secrets/POSTGRES_DB
+    printf "%s" "api-service-user" > ./kustomize/postgres/.secrets/POSTGRES_USER
+    printf "%s" "$(openssl rand -base64 16)" > ./kustomize/postgres/.secrets/POSTGRES_PASSWORD
+    
+    cp -f ./kustomize/postgres/.secrets/POSTGRES_USER ./applications/.secrets/PGUSER
+    cp -f ./kustomize/postgres/.secrets/POSTGRES_PASSWORD ./applications/.secrets/PGPASSWORD
+    cp -f ./kustomize/postgres/.secrets/POSTGRES_DB ./applications/.secrets/PGDATABASE
+    
+    cp -f ./kustomize/postgres/.secrets/POSTGRES_PASSWORD ~/.pgpass && chmod 600 ~/.pgpass
+    
+    mkdir -p ./applications/.secrets
+    
+    cp -rf ./kustomize/postgres/.secrets/. ./applications/.secrets
+
+    kubectl apply --kustomize ./kustomize/postgres --wait
+    ```
+13. Check access to database(s).
+    ```bash
+    kubectl port-forward --namespace database services/postgres 5432:5432
+    kubectl exec -it  -- psql -h localhost -U ps_user --password -p 5432 ps_db
+    ```
+14. Deploy all service(s).
     ```bash
     cd ./applications && make
     ```

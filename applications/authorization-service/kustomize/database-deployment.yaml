@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: postgres
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: postgres
+    template:
+        metadata:
+            labels:
+                app: postgres
+                version: v1
+                sidecar.istio.io/inject: "true"
+        spec:
+            containers:
+                - name: postgres
+                  image: postgres:16
+                  imagePullPolicy: Always
+                  ports:
+                      - containerPort: 5432
+                  envFrom:
+                      - secretRef:
+                            name: postgres-database-secret
+                  volumeMounts:
+                      - mountPath: /var/lib/postgresql/data
+                        name: postgresdata
+            volumes:
+                - name: postgresdata
+                  persistentVolumeClaim:
+                      claimName: postgres-volume-claim

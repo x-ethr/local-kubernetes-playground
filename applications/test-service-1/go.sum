@@ -21,8 +21,14 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/x-ethr/color v0.1.2 h1:WWmm84jPxr95QzDZOzkmB/cXmqX/RMgG/r8WFlvom+E=
 github.com/x-ethr/color v0.1.2/go.mod h1:w7Mcz7AQKVhPSadl5fsZ0J43P9V4Pew0H6tbE7FCmOs=
-github.com/x-ethr/server v0.1.21 h1:5jQSXUysGDraOAh1tiilu5KMLFSLGWKov1Frl0I4zMg=
-github.com/x-ethr/server v0.1.21/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
+github.com/x-ethr/server v0.1.24 h1:Wpf9sG/mQ1rkWYHKLA+rt4kdPmecL7e1Lku0ioLyr04=
+github.com/x-ethr/server v0.1.24/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
+github.com/x-ethr/server v0.1.25 h1:ZslNLh4kxQlwDdYgcME9ydCUIQXPH3oiXQiWdRjPR78=
+github.com/x-ethr/server v0.1.25/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
+github.com/x-ethr/server v0.1.27 h1:b95xBBmYJ7xd8HV5nqq3mTb55qGE7jhHn5ljguh/ACY=
+github.com/x-ethr/server v0.1.27/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
+github.com/x-ethr/server v0.1.28 h1:WUPOYXjYgjkT/j5nFuIEF4k8yiwr6SFWuAxM7TipXoE=
+github.com/x-ethr/server v0.1.28/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
 github.com/x-ethr/text v0.1.18 h1:9vQ2rm5DqprfZ44c44rpUAVuN8d0KhZh2i/hFZodx0k=
 github.com/x-ethr/text v0.1.18/go.mod h1:1D6l+tvaNcEw7HRRVJb/PgVqdpj1SFdPp/Hkbrbfc5g=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0 h1:9l89oX4ba9kHbBol3Xin3leYJ+252h0zszDtBwyKe2A=

@@ -54,6 +54,7 @@ func main() {
 	mux := server.New()
 
 	mux.Middleware(middleware.New().Path().Middleware)
+	mux.Middleware(middleware.New().Envoy().Middleware)
 	mux.Middleware(middleware.New().Timeout().Configuration(func(options *timeout.Settings) {
 		options.Timeout = 30 * time.Second
 	}).Middleware)
@@ -67,10 +68,6 @@ func main() {
 	}).Middleware)
 
 	mux.Middleware(middleware.New().Version().Configuration(func(options *versioning.Settings) {
-		options.Version.API = os.Getenv("VERSION")
-		if options.Version.API == "" && os.Getenv("CI") == "" {
-			options.Version.API = "local"
-		}
 
 		options.Version.Service = version
 	}).Middleware)
@@ -92,10 +89,9 @@ func main() {
 
 			var payload = map[string]interface{}{
 				middleware.New().Service().Value(ctx): map[string]interface{}{
-					"path":        path,
-					"service":     middleware.New().Service().Value(ctx),
-					"version":     middleware.New().Version().Value(ctx).Service,
-					"api-version": middleware.New().Version().Value(ctx).API,
+					"path":    path,
+					"service": middleware.New().Service().Value(ctx),
+					"version": middleware.New().Version().Value(ctx).Service,
 				},
 			}
 

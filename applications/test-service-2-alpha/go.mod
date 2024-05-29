@@ -3,7 +3,7 @@ module test-service-2-alpha
 go 1.22.3
 
 require (
-	github.com/x-ethr/server v0.1.21
+	github.com/x-ethr/server v0.1.28
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0
 	go.opentelemetry.io/otel v1.27.0
 	go.opentelemetry.io/otel/trace v1.27.0

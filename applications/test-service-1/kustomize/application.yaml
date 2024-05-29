@@ -113,6 +113,17 @@ spec:
                 -   path:
                         type: PathPrefix
                         value: /v1/test-service-1
+            filters:
+                -   type: URLRewrite
+                    urlRewrite:
+                        path:
+                            type: ReplacePrefixMatch
+                            replacePrefixMatch: /
+                -   type: RequestHeaderModifier
+                    requestHeaderModifier:
+                        add:
+                            -   name: "X-API-Version"
+                                value: "v1"
             backendRefs:
                 -   name: test-service-1
                     kind: Service

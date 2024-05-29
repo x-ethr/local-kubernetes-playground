@@ -59,39 +59,39 @@ prepare:
 	@go get -u github.com/x-ethr/server
 	@go mod tidy
 	@$(ok) Build Preparation
-	@printf "\n"
 
 bump: prepare
 	@$(information) Service Name: $(service), Version: $(version)
 	@echo $(patch-upgrade) > VERSION
 	@$(ok) Version Bump
-	@printf "\n"
 
 build: bump
 	@$(information) Building Container Image
 	@docker build --file ../Dockerfile --tag "localhost:5050/$(service):$(version)" --build-arg="SERVICE=$(service)" .
 	@docker push "localhost:5050/$(service):$(version)"
 	@$(ok) Build
-	@printf "\n"
 
 update: build
 	@$(information) Updating Kustomization Image Patches
 	@ethr-cli kubernetes kustomization update image --file ./kustomize/kustomization.yaml --image service:latest --name $(service) --tag $(version) --registry localhost:5050
 	@$(ok) Update
-	@printf "\n"
 
 manifests: update
 	@$(information) Applying Kuberenetes Manifests
 	@kubectl apply --kustomize . --wait
 	@$(ok) Manifests
-	@printf "\n"
 
 deploy: manifests
 	@$(information) Beginning Rollout
 	@kubectl --namespace development rollout restart deployments/$(service)
 	@kubectl --namespace development rollout status deployments/$(service)
 	@$(ok) Deployment
-	@printf "\n"
+
+deploy-service: manifests
+	@$(information) Beginning Rollout
+	@kubectl --namespace $(service) rollout restart deployments/api
+	@kubectl --namespace $(service) rollout status deployments/api
+	@$(ok) Deployment
 
 # ====================================================================================
 # Help

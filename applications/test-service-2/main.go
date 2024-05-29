@@ -56,6 +56,7 @@ func main() {
 	mux := server.New()
 
 	mux.Middleware(middleware.New().Path().Middleware)
+	mux.Middleware(middleware.New().Envoy().Middleware)
 	mux.Middleware(middleware.New().Timeout().Configuration(func(options *timeout.Settings) {
 		options.Timeout = 30 * time.Second
 	}).Middleware)
@@ -69,10 +70,6 @@ func main() {
 	}).Middleware)
 
 	mux.Middleware(middleware.New().Version().Configuration(func(options *versioning.Settings) {
-		options.Version.API = os.Getenv("VERSION")
-		if options.Version.API == "" && os.Getenv("CI") == "" {
-			options.Version.API = "local"
-		}
 
 		options.Version.Service = version
 	}).Middleware)
@@ -81,7 +78,7 @@ func main() {
 
 	mux.Register("GET /health", server.Health)
 
-	mux.Register(fmt.Sprintf("GET /%s/%s", prefix[version], service), func(w http.ResponseWriter, r *http.Request) {
+	mux.Register("GET /", func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s - main", service))
 		span.SetAttributes(attribute.String("workload", service))
 		span.SetAttributes(telemetry.Resources(ctx, service, version).Attributes()...)
@@ -95,10 +92,9 @@ func main() {
 
 			var payload = map[string]interface{}{
 				middleware.New().Service().Value(ctx): map[string]interface{}{
-					"path":        path,
-					"service":     middleware.New().Service().Value(ctx),
-					"version":     middleware.New().Version().Value(ctx).Service,
-					"api-version": middleware.New().Version().Value(ctx).API,
+					"path":    path,
+					"service": middleware.New().Service().Value(ctx),
+					"version": middleware.New().Version().Value(ctx).Service,
 				},
 			}
 
@@ -123,19 +119,19 @@ func main() {
 		}
 	})
 
-	mux.Register(fmt.Sprintf("GET /%s/%s/alpha", prefix[version], service), func(w http.ResponseWriter, r *http.Request) {
+	mux.Register("GET /alpha", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		attributes := trace.WithAttributes(telemetry.Resources(ctx, service, version).Attributes()...)
 		ctx, span := tracer.Start(ctx, fmt.Sprintf("%s - main", service), trace.WithSpanKind(trace.SpanKindServer), trace.WithAttributes(attribute.String("workload", service), attribute.String("component", fmt.Sprintf("%s-%s", service, "example-component"))), attributes)
 		defer span.End()
 
-		channel := make(chan map[string]interface{}, 1)
+		channel, exception := make(chan map[string]interface{}, 1), make(chan error)
 		var process = func(ctx context.Context, span trace.Span, c chan map[string]interface{}) {
 			client := otelhttp.DefaultClient
 			request, e := http.NewRequestWithContext(ctx, "GET", "http://test-service-2-alpha.development.svc.cluster.local:8080", nil)
 			if e != nil {
 				slog.ErrorContext(ctx, "Error While Calling Internal Service", slog.String("error", e.Error()))
-				http.Error(w, "error while generating GET request to internal service", http.StatusInternalServerError)
+				exception <- e
 				return
 			}
 
@@ -145,7 +141,7 @@ func main() {
 			response, e := client.Do(request)
 			if e != nil {
 				slog.ErrorContext(ctx, "Error Generating Response from Internal Service", slog.String("error", e.Error()))
-				http.Error(w, "exception generating response from internal service", http.StatusInternalServerError)
+				exception <- e
 				return
 			}
 
@@ -153,18 +149,19 @@ func main() {
 
 			var structure interface{}
 			if e := json.NewDecoder(response.Body).Decode(&structure); e != nil {
-				http.Error(w, "unable to decode response body to normalized data structure", http.StatusInternalServerError)
+				slog.ErrorContext(ctx, "Unable to Decode Response Body to Normalized Data Structure", slog.String("error", e.Error()))
+				exception <- e
 				return
 			}
-			path := middleware.New().Path().Value(ctx)
 
+			path := middleware.New().Path().Value(ctx)
 			var payload = map[string]interface{}{
 				middleware.New().Service().Value(ctx): map[string]interface{}{
-					"path":        path,
-					"service":     middleware.New().Service().Value(ctx),
-					"version":     middleware.New().Version().Value(ctx).Service,
-					"api-version": middleware.New().Version().Value(ctx).API,
-					"response":    structure,
+					"path":    path,
+					"service": middleware.New().Service().Value(ctx),
+					"version": middleware.New().Version().Value(ctx).Service,
+
+					"response": structure,
 				},
 			}
 
@@ -182,6 +179,11 @@ func main() {
 			w.WriteHeader(http.StatusOK)
 
 			json.NewEncoder(w).Encode(payload)
+
+			return
+		case e := <-exception:
+			slog.ErrorContext(ctx, "Error While Processing Request", slog.String("error", e.Error()))
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 			return
 		}
