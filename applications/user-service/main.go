@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,7 +12,10 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/x-ethr/environment"
 	"github.com/x-ethr/server"
+	"github.com/x-ethr/server/handler"
+	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/logging"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/middleware/name"
@@ -23,10 +25,8 @@ import (
 	"github.com/x-ethr/server/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
-	"github.com/x-ethr/environment"
-
+	"user-service/internal/api/metadata"
 	"user-service/internal/api/registration"
 )
 
@@ -56,10 +56,9 @@ var (
 )
 
 func main() {
-	// Create an instance of the custom handler
-	mux := server.New()
+	middlewares := server.Middleware()
 
-	mux.Middleware(func(next http.Handler) http.Handler {
+	middlewares.Add(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			ctx = context.WithValue(ctx, "logger", logger)
@@ -67,68 +66,26 @@ func main() {
 		})
 	})
 
-	mux.Middleware(middleware.New().Path().Middleware)
-	mux.Middleware(middleware.New().Envoy().Middleware)
-	mux.Middleware(middleware.New().Timeout().Configuration(func(options *timeout.Settings) { options.Timeout = 30 * time.Second }).Middleware)
-	mux.Middleware(middleware.New().Server().Configuration(func(options *servername.Settings) { options.Server = header }).Middleware)
-	mux.Middleware(middleware.New().Service().Configuration(func(options *name.Settings) { options.Service = service }).Middleware)
-	mux.Middleware(middleware.New().Version().Configuration(func(options *versioning.Settings) { options.Version.Service = version }).Middleware)
-	mux.Middleware(middleware.New().Telemetry().Middleware)
+	middlewares.Add(middleware.New().Path().Middleware)
+	middlewares.Add(middleware.New().Envoy().Middleware)
+	middlewares.Add(middleware.New().Timeout().Configuration(func(options *timeout.Settings) { options.Timeout = 30 * time.Second }).Middleware)
+	middlewares.Add(middleware.New().Server().Configuration(func(options *servername.Settings) { options.Server = header }).Middleware)
+	middlewares.Add(middleware.New().Service().Configuration(func(options *name.Settings) { options.Service = service }).Middleware)
+	middlewares.Add(middleware.New().Version().Configuration(func(options *versioning.Settings) { options.Version.Service = version }).Middleware)
+	middlewares.Add(middleware.New().Telemetry().Middleware)
 
-	mux.Register("GET /", func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s - main", service))
-		span.SetAttributes(attribute.String("workload", service))
-		span.SetAttributes(telemetry.Resources(ctx, service, version).Attributes()...)
-		span.SetAttributes(attribute.String("component", fmt.Sprintf("%s-%s", service, "example-component")))
+	mux := http.NewServeMux()
 
-		defer span.End()
+	mux.HandleFunc("GET /", metadata.Handler()
 
-		channel, exception := make(chan map[string]interface{}, 1), make(chan error)
-		var process = func(ctx context.Context, span trace.Span, c chan map[string]interface{}) {
-			path := middleware.New().Path().Value(ctx)
+	mux.HandleFunc("POST /register", registration.Handler(tracer))
 
-			var payload = map[string]interface{}{
-				middleware.New().Service().Value(ctx): map[string]interface{}{
-					"path":    path,
-					"service": middleware.New().Service().Value(ctx),
-					"version": middleware.New().Version().Value(ctx).Service,
-				},
-			}
-
-			span.SetAttributes(attribute.String("path", path))
-
-			c <- payload
-		}
-
-		go process(ctx, span, channel)
-
-		select {
-		case <-ctx.Done():
-			return
-		case payload := <-channel:
-			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("X-Request-ID", r.Header.Get("X-Request-ID"))
-			w.WriteHeader(http.StatusOK)
-
-			json.NewEncoder(w).Encode(payload)
-
-			return
-		case e := <-exception:
-			slog.ErrorContext(ctx, "Error While Processing Request", slog.String("error", e.Error()))
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-
-			return
-		}
-	})
-
-	mux.Register("POST /register", registration.Handler)
-
-	mux.Register("GET /health", server.Health)
+	mux.HandleFunc("GET /health", server.Health)
 
 	// Start the HTTP server
 	slog.Info("Starting Server ...", slog.String("local", fmt.Sprintf("http://localhost:%s", *(port))))
 
-	api := server.Server(ctx, mux, *port)
+	api := server.Server(ctx, mux, middlewares, *port)
 
 	// Issue Cancellation Handler
 	server.Interrupt(ctx, cancel, api)
