@@ -1,0 +1,49 @@
+{
+    "name": "@x-ethr/fake-data",
+    "version": "0.0.1",
+    "description": "Fake Data Insertion(s) for Local Database Hydration",
+    "main": "index.js",
+    "scripts": {
+        "build": "tsc --build $(dirname $(npm root))",
+        "start": "ts-node .",
+        "execute": "npm run build && npm install --global $(pwd) && $(basename $(pwd))",
+        "prepublish": "npm run build"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://x-ethr/local-kubernetes-playground",
+        "directory": "scripts/fake-data"
+    },
+    "author": "Jacob B. Sanders",
+    "devDependencies": {
+        "@iac-factory/eslint-settings": "latest",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.4.5"
+    },
+    "eslintConfig": {
+        "parser": "@typescript-eslint/parser",
+        "settings": {
+            "extends": "@iac-factory/eslint-settings"
+        },
+        "parserOptions": {
+            "ecmaVersion": "latest",
+            "sourceType": "module"
+        },
+        "rules": {
+            "quotes": [
+                "error",
+                "double",
+                {
+                    "allowTemplateLiterals": true
+                }
+            ],
+            "indent": [
+                "error",
+                4
+            ]
+        }
+    },
+    "dependencies": {
+        "@faker-js/faker": "^8.4.1"
+    }
+}

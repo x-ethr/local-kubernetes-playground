@@ -39,7 +39,7 @@ func process(ctx context.Context, reader io.ReadCloser, body chan *Body, channel
 		return
 	}
 
-	defer connection.Close(ctx)
+	defer connection.Close()
 
 	count, e := users.New(connection).Count(ctx, user.Email)
 	if e != nil {
@@ -85,7 +85,9 @@ func process(ctx context.Context, reader io.ReadCloser, body chan *Body, channel
 			return
 		}
 
-		exception <- &Exception{Code: http.StatusInternalServerError, Log: "Error Making Request to Authorization Service", Source: fmt.Errorf("response: %s", string(content))}
+		slog.ErrorContext(ctx, "Authorization Service Error Message", slog.String("message", string(content)))
+
+		exception <- &Exception{Code: response.StatusCode, Log: "Error Making Request to Authorization Service", Source: fmt.Errorf("response: %s", string(content))}
 		return
 	}
 
@@ -145,7 +147,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			e.Response(w)
 			return
 		case e := <-exception:
-			slog.ErrorContext(ctx, "Error While Processing Request", slog.Any("error", e), slog.String("path", r.URL.Path), slog.String("method", r.Method), slog.Any("input", input))
+			slog.ErrorContext(ctx, "Error While Processing Request", slog.String("error", e.Source.Error()), slog.String("internal-message", e.Log), slog.String("path", r.URL.Path), slog.String("method", r.Method), slog.Any("input", input))
 			http.Error(w, e.Error(), e.Code)
 
 			return
