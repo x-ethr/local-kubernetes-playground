@@ -1,0 +1,19 @@
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+namespace: database
+resources:
+    - namespace.yaml
+    - persistent-volume.yaml
+    - persistent-volume-claim.yaml
+    - deployment.yaml
+    - service.yaml
+secretGenerator:
+    - namespace: database
+      name: postgres-database-secret
+      files:
+        - ./.secrets/POSTGRES_USER
+        - ./.secrets/POSTGRES_PASSWORD
+        - ./.secrets/POSTGRES_DB
+      options:
+        disableNameSuffixHash: true
+      type: Opaque

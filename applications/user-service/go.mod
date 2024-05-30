@@ -5,6 +5,7 @@ go 1.22.3
 require (
 	github.com/go-playground/validator/v10 v10.20.0
 	github.com/jackc/pgx/v5 v5.6.0
+	github.com/x-ethr/environment v0.1.1
 	github.com/x-ethr/server v0.3.3
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0
 	go.opentelemetry.io/otel v1.27.0

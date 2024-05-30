@@ -16,3 +16,4 @@ Makefile
 .dockerignore
 
 kustomize
+kustomization.yaml

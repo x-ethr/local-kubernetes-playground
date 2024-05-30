@@ -1,11 +1,25 @@
 # `local-kubernetes-playground`
 
+Software engineers at ETHR previously used a variation of the following project as a playground for software development, automation testing,
+research, and for demonstrating proof-of-concepts.
+
+This playground was the motivation behind establishing `x-ethr` and its related open-source repositories. 
+
 > [!IMPORTANT]
 > The following project requires an expansive amount of knowledge around cloud-providers (AWS), development, kubernetes, and overall
 > systems. While the guide can be followed step-by-step to produce a fully functioning cluster, there are [requirements](#requirements)
-> that would be difficult for beginners to 1. understand, 2. setup, 3. debug.
+> that would be challenging for beginners to 1. understand, 2. setup, 3. debug.
 > 
 > If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply following the [usage](#usage) section.
+> 
+> Users of `local-kubernetes-playground` will involve themselves in the following disciplines:
+> - Software Engineering
+> - DevOps
+> - Cloud & Platform Engineering (AWS)
+> - Systems Administration (Kubernetes)
+> - GitOps
+> - Databases
+> - Security
 
 ## Example
 
@@ -32,6 +46,7 @@
 - [`ethr-cli`](https://github.com/x-ethr/ethr-cli)
 - [`aws-cli`](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - [`flux`](https://fluxcd.io/flux/get-started/)
+- [`psql`](https://www.postgresql.org/download/)
 
 ###### External-Provider(s)
 
@@ -44,6 +59,10 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
 - A valid AWS account
   - A configured `default` profile
   - Secrets in AWS SecretsManager for local development purposes. See the scripts' sections in [usage](#usage) for details.
+
+###### Optional(s)
+
+- [OpenLens](https://github.com/MuhammedKalkan/OpenLens): Kubernetes UI Dashboard 
 
 ## Usage
 
@@ -82,6 +101,12 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     
     kubectl apply --kustomize ./kustomize/secrets --wait
     ```
+    - Requires `aws-cli` is installed with a valid `default` profile.
+    - Assumes a secret in SecretsManager called `local/external-secrets/provider/aws/credentials` exists, and contains the following contents:
+        ```
+        "{\"aws-access-key-id\":\"...\",\"aws-secret-access-key\":\"...\"}"
+        ```
+       - By no means should this secret contain credentials to Administrative function(s). Lock this API user's access down, as it's really only for local development purposes.
 4. Bootstrap.
     ```bash
     flux bootstrap github --repository "https://github.com/x-ethr/cluster-management" \
@@ -90,6 +115,7 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
         --personal "false" \
         --path "clusters/local"
     ```
+   - For users outside the `x-ethr` organization, fork, import, or copy the https://github.com/x-ethr/cluster-management repository; or use a customized Flux GitOps project.
 5. Sync local cluster repository's `vendors`.
     ```bash
     git submodule update --remote --recursive
@@ -114,40 +140,67 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
 10. Wait for the various resources to reconcile successfully.
 11. Initialize the kubernetes gateway.
     ```bash
-    kubectl apply --kustomize ./applications 
+    kubectl apply --kustomize ./applications
     ```
-12. Deploy the database.
+12. Setup and deploy the database(s).
     ```bash
-    mkdir -p ./kustomize/postgres/.secrets
+    mkdir -p ./kustomize/database/.secrets
 
-    printf "%s" "database" > ./kustomize/postgres/.secrets/POSTGRES_DB
-    printf "%s" "api-service-user" > ./kustomize/postgres/.secrets/POSTGRES_USER
-    printf "%s" "$(openssl rand -base64 16)" > ./kustomize/postgres/.secrets/POSTGRES_PASSWORD
+    printf "%s" "postgres" > ./kustomize/database/.secrets/POSTGRES_DB
+    printf "%s" "api-service-user" > ./kustomize/database/.secrets/POSTGRES_USER
+    printf "%s" "$(openssl rand -base64 16)" > ./kustomize/database/.secrets/POSTGRES_PASSWORD
     
-    cp -f ./kustomize/postgres/.secrets/POSTGRES_USER ./applications/.secrets/PGUSER
-    cp -f ./kustomize/postgres/.secrets/POSTGRES_PASSWORD ./applications/.secrets/PGPASSWORD
-    cp -f ./kustomize/postgres/.secrets/POSTGRES_DB ./applications/.secrets/PGDATABASE
+    mkdir -p ./applications/user-service/kustomize/.secrets
+    cp -f ./kustomize/database/.secrets/POSTGRES_USER ./applications/user-service/kustomize/.secrets/PGUSER
+    cp -f ./kustomize/database/.secrets/POSTGRES_PASSWORD ./applications/user-service/kustomize/.secrets/PGPASSWORD
+    printf "%s" "user-service" > ./applications/user-service/kustomize/.secrets/PGDATABASE
     
-    cp -f ./kustomize/postgres/.secrets/POSTGRES_PASSWORD ~/.pgpass && chmod 600 ~/.pgpass
+    mkdir -p ./applications/authorization-service/kustomize/.secrets
+    cp -f ./kustomize/database/.secrets/POSTGRES_USER ./applications/authorization-service/kustomize/.secrets/PGUSER
+    cp -f ./kustomize/database/.secrets/POSTGRES_PASSWORD ./applications/authorization-service/kustomize/.secrets/PGPASSWORD
+    printf "%s" "authorization-service" > ./applications/authorization-service/kustomize/.secrets/PGDATABASE
     
-    mkdir -p ./applications/.secrets
+    function uri() {
+        printf "%s:%s:%s:%s:%s" "localhost" "5432" "postgres" "$(head ./kustomize/database/.secrets/POSTGRES_USER)" "$(head ./kustomize/database/.secrets/POSTGRES_PASSWORD)"
+    }
     
-    cp -rf ./kustomize/postgres/.secrets/. ./applications/.secrets
+    printf "%s" "$(uri)" > ~/.pgpass && chmod 600 ~/.pgpass
 
-    kubectl apply --kustomize ./kustomize/postgres --wait
+    kubectl apply --kustomize ./kustomize/database --wait
+    
+    sleep 5.0 && kubectl --namespace database logs --all-containers services/postgres
+    
+    kubectl rollout status --namespace database deployment postgres
     ```
-13. Check access to database(s).
+13. Port-forward the database.
     ```bash
     kubectl port-forward --namespace database services/postgres 5432:5432
-    kubectl exec -it  -- psql -h localhost -U ps_user --password -p 5432 ps_db
     ```
-14. Deploy all service(s).
+14. Create service-specific databases (in a true [microservice](https://microservices.io/patterns/data/database-per-service.html) environment, such a setup likely would different).
     ```bash
-    cd ./applications && make
+    psql -h "localhost" -U "api-service-user" -p "5432" "postgres"
+    ```
+
+    ```postgresql
+    CREATE DATABASE "user-service" WITH OWNER = "api-service-user";
+    CREATE DATABASE "authorization-service" WITH OWNER = "api-service-user";
+    ```
+15. Execute the various `schema.sql` files listed throughout the `./applications/**/models` directories.
+16. Deploy all service(s).
+    ```bash
+    make -C ./applications
     ```
     - *Note*: the Makefile targets in the ./applications directory will version bump all services, and requires a running container registry: `localhost:5050`. 
 
 ### Service-Mesh
+
+*The following command will port-forward the gateway's configured port `80` and expose it on `localhost:8080`.*
+
+```bash
+kubectl port-forward --namespace development services/api-gateway-istio 8080:80
+```
+
+###### Network Traffic
 
 *In order to view tracing and network traffic, issue the following command(s)*:
 
@@ -157,14 +210,6 @@ for i in $(seq 1 250); do
     curl "http://localhost:8080/v1/test-service-2"
     curl "http://localhost:8080/v1/test-service-2/alpha"
 done
-```
-
-###### API Gateway
-
-*The following command will port-forward the gateway's configured port `80` and expose it on `localhost:8080`.*
-
-```bash
-kubectl port-forward --namespace development services/api-gateway-istio 8080:80
 ```
 
 ###### Kiali Dashboard

@@ -46,6 +46,8 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/x-ethr/color v0.1.3 h1:HXgYVG+DcdBlDrDtW6DBf/7M+rNsgpGHNkHGoHUjBDs=
 github.com/x-ethr/color v0.1.3/go.mod h1:w7Mcz7AQKVhPSadl5fsZ0J43P9V4Pew0H6tbE7FCmOs=
+github.com/x-ethr/environment v0.1.1 h1:CL8FaYjR5pi6+za/HNrt4PvpwMfw8Y8lZWZzW1n7SyY=
+github.com/x-ethr/environment v0.1.1/go.mod h1:NKKbX1+Y3/Lt3Y3V2I9Ohu2udH7QhX6OqaCSDhT+ojc=
 github.com/x-ethr/server v0.3.3 h1:bQeC8xhUXUDHHe4IvTI//VFYOxnwajDa/IAucBEOkoE=
 github.com/x-ethr/server v0.3.3/go.mod h1:B06E65tH9EVh8aamRbi3w5OvjtVlStc3hLgBWSAiCrQ=
 github.com/x-ethr/text v0.1.19 h1:5sszjo2XS4Nynn1cH1BpUDS8YNSefC4LmO6MSqTpvBo=

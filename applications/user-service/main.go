@@ -25,6 +25,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/x-ethr/environment"
+
 	"user-service/internal/api/registration"
 )
 
@@ -185,4 +187,6 @@ func init() {
 	handler := logging.Logger(func(o *logging.Options) { o.Service = service })
 	logger = slog.New(handler)
 	slog.SetDefault(logger)
+
+	environment.Log(ctx, slog.LevelInfo)
 }

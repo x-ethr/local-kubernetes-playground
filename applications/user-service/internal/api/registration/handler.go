@@ -65,7 +65,7 @@ func process(ctx context.Context, reader io.ReadCloser, body chan *Body, channel
 	}
 
 	client := otelhttp.DefaultClient
-	request, e := http.NewRequestWithContext(ctx, http.MethodPost, "http://api.authorization-service.svc.cluster.local:8080/users", &buffer)
+	request, e := http.NewRequestWithContext(ctx, http.MethodPost, "http://authorization-service.development.svc.cluster.local:8080/users", &buffer)
 	if e != nil {
 		exception <- &Exception{Code: http.StatusInternalServerError, Log: "Unable to Create Request to Authorization Service", Source: e}
 		return

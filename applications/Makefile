@@ -14,11 +14,9 @@ apply:
 
 kustomize:
 	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
-		if ! [[ "$${DIRECTORY}" =~ ".secrets" ]]; then \
-		    cd "$${DIRECTORY}" ;\
-		    find . -type d -mindepth 1 -maxdepth 1 -execdir kubectl apply --wait --kustomize . \; ;\
-    		cd "$(PWD)" ;\
-		fi \
+		cd "$${DIRECTORY}" ;\
+		kubectl apply --wait --kustomize .
+		cd "$(PWD)" ;\
 	done
 
 clean:
@@ -26,9 +24,14 @@ clean:
 
 update-server-package:
 	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
-		if ! [[ "$${DIRECTORY}" =~ ".secrets" ]]; then \
-		    cd "$${DIRECTORY}" ;\
-		    go get -u github.com/x-ethr/server ;\
-    		cd "$(PWD)" ;\
-		fi \
+		cd "$${DIRECTORY}" ;\
+		go get -u github.com/x-ethr/server ;\
+		cd "$(PWD)" ;\
+	done
+
+reset-versions:
+	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
+		cd "$${DIRECTORY}" ;\
+		printf "0.0.0" > VERSION ;\
+		cd "$(PWD)" ;\
 	done
