@@ -3,9 +3,11 @@ package database
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"sync/atomic"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func ssl() bool {
@@ -32,6 +34,28 @@ func dsn() (v string) {
 	return
 }
 
-func Connection(ctx context.Context) (*pgx.Conn, error) {
-	return pgx.Connect(ctx, dsn())
+var pool atomic.Pointer[pgxpool.Pool]
+
+// Connection establishes a connection to the database using pgxpool.
+// If a connection pool does not exist, a new one is created and stored in the pool variable.
+// Returns a connection from the connection pool.
+// If an error occurs during connection creation, nil and the error are returned.
+func Connection(ctx context.Context) (*pgxpool.Conn, error) {
+	if pool.Load() == nil {
+		configuration, e := pgxpool.ParseConfig(dsn())
+		if e != nil {
+			slog.ErrorContext(ctx, "Unable to Generate Configuration from DSN String", slog.String("error", e.Error()))
+			return nil, e
+		}
+
+		instance, e := pgxpool.NewWithConfig(ctx, configuration)
+		if e != nil {
+			slog.ErrorContext(ctx, "Unable to Establish Pool Connection to Database", slog.String("error", e.Error()))
+			return nil, e
+		}
+
+		pool.Store(instance)
+	}
+
+	return pool.Load().Acquire(ctx)
 }

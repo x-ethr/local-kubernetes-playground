@@ -25,7 +25,7 @@ func process(ctx context.Context, reader io.ReadCloser, body chan *Body, channel
 
 	body <- &data
 
-	if message, validators, e := Validate(ctx, v, reader, &data); e != nil {
+	if message, validators, e := Validate(ctx, reader, &data); e != nil {
 		invalid <- &Invalid{Validators: validators, Message: message, Source: e}
 		return
 	}
@@ -39,7 +39,7 @@ func process(ctx context.Context, reader io.ReadCloser, body chan *Body, channel
 		return
 	}
 
-	defer connection.Close()
+	defer connection.Release()
 
 	count, e := users.New(connection).Count(ctx, user.Email)
 	if e != nil {
@@ -134,7 +134,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			slog.InfoContext(ctx, "Successfully Processed Request", slog.Any("response", response))
+			slog.DebugContext(ctx, "Successfully Processed Request", slog.Any("response", response))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
@@ -147,10 +147,16 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			e.Response(w)
 			return
 		case e := <-exception:
-			slog.ErrorContext(ctx, "Error While Processing Request", slog.String("error", e.Source.Error()), slog.String("internal-message", e.Log), slog.String("path", r.URL.Path), slog.String("method", r.Method), slog.Any("input", input))
+			var err error = e.Source
+			if e.Source == nil {
+				err = fmt.Errorf("N/A")
+			}
+
+			slog.ErrorContext(ctx, "Error While Processing Request", slog.String("error", err.Error()), slog.String("internal-message", e.Log), slog.String("path", r.URL.Path), slog.String("method", r.Method), slog.Any("input", input))
 			http.Error(w, e.Error(), e.Code)
 
 			return
 		}
 	}
+
 }

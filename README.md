@@ -47,6 +47,7 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 - [`aws-cli`](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - [`flux`](https://fluxcd.io/flux/get-started/)
 - [`psql`](https://www.postgresql.org/download/)
+- [Node.js + `npm`](https://nodejs.org/en/download/package-manager)
 
 ###### External-Provider(s)
 
@@ -62,7 +63,7 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
 
 ###### Optional(s)
 
-- [OpenLens](https://github.com/MuhammedKalkan/OpenLens): Kubernetes UI Dashboard 
+- [OpenLens](https://github.com/MuhammedKalkan/OpenLens) - Kubernetes UI Dashboard 
 
 ## Usage
 

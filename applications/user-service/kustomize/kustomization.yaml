@@ -4,7 +4,7 @@ namespace: development
 images:
     - name: service:latest
       newName: localhost:5050/user-service
-      newTag: 0.0.4
+      newTag: 0.0.17
 resources:
     - application.yaml
 secretGenerator:

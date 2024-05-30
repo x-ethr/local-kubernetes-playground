@@ -15,18 +15,21 @@ spec:
                 sidecar.istio.io/inject: "true"
         spec:
             containers:
-                - name: postgres
-                  image: postgres:16
-                  imagePullPolicy: Always
-                  ports:
-                      - containerPort: 5432
-                  envFrom:
-                      - secretRef:
-                            name: postgres-database-secret
-                  volumeMounts:
-                      - mountPath: /var/lib/postgresql/data
-                        name: postgresdata
+                -   name: postgres
+                    image: postgres:16
+                    imagePullPolicy: Always
+                    ports:
+                        -   containerPort: 5432
+                    envFrom:
+                        -   secretRef:
+                                name: postgres-database-secret
+                    env:
+                        -   name: POSTGRES_INITDB_ARGS
+                            value: ""
+                    volumeMounts:
+                        -   mountPath: /var/lib/postgresql/data
+                            name: postgresdata
             volumes:
-                - name: postgresdata
-                  persistentVolumeClaim:
-                      claimName: postgres-volume-claim
+                -   name: postgresdata
+                    persistentVolumeClaim:
+                        claimName: postgres-volume-claim

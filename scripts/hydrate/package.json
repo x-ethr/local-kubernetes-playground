@@ -1,11 +1,12 @@
 {
-    "name": "@x-ethr/fake-data",
+    "name": "@x-ethr/hydrate",
+    "private": true,
     "version": "0.0.1",
     "description": "Fake Data Insertion(s) for Local Database Hydration",
     "main": "index.js",
     "scripts": {
         "build": "tsc --build $(dirname $(npm root))",
-        "start": "ts-node .",
+        "start": "npm run build && ts-node .",
         "execute": "npm run build && npm install --global $(pwd) && $(basename $(pwd))",
         "prepublish": "npm run build"
     },
@@ -45,5 +46,8 @@
     },
     "dependencies": {
         "@faker-js/faker": "^8.4.1"
+    },
+    "bin": {
+        "hydrate": "./index.js"
     }
 }

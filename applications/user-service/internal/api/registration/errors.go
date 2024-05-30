@@ -23,7 +23,7 @@ func (i *Invalid) Error() string {
 	if i.Message == "" {
 		exception = fmt.Errorf("(%d) %s", http.StatusBadRequest, http.StatusText(http.StatusBadRequest)).Error()
 	} else if i.Message == "Internal Validation Error" {
-		exception = fmt.Errorf("(%d) %s", http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)).Error()
+		exception = fmt.Errorf("(%d) %s", http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)).Error()
 	}
 
 	return exception

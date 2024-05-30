@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sync/atomic"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -35,7 +36,7 @@ func (b *Body) Help() map[string]Validator {
 }
 
 // v represents the request body's struct validator
-var v = validator.New(validator.WithRequiredStructEnabled())
+var v atomic.Pointer[validator.Validate]
 
 type Validator struct {
 	Value   interface{} `json:"value,omitempty"`
@@ -47,7 +48,11 @@ type Helper interface {
 	Help() map[string]Validator
 }
 
-func Validate(ctx context.Context, validation *validator.Validate, body io.Reader, data Helper) (string, map[string]Validator, error) {
+func Validate(ctx context.Context, body io.Reader, data Helper) (string, map[string]Validator, error) {
+	if v.Load() == nil {
+		v.Store(validator.New(validator.WithRequiredStructEnabled()))
+	}
+
 	// invalid describes an invalid argument passed to `Struct`, `StructExcept`, StructPartial` or `Field`
 	var invalid *validator.InvalidValidationError
 
@@ -62,7 +67,7 @@ func Validate(ctx context.Context, validation *validator.Validate, body io.Reade
 	}
 
 	// Validate "data" using "validation".
-	if e := validation.Struct(data); e != nil {
+	if e := v.Load().Struct(data); e != nil {
 		// Check if the error is due to an invalid validation configuration.
 		if errors.As(e, &invalid) {
 			// Log the issue and return an Internal server error exception.
