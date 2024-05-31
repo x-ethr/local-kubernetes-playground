@@ -253,6 +253,12 @@ istioctl dashboard kiali
 istioctl dashboard jaeger
 ```
 
+*Useful `istoctl` command(s)*
+
+```bash
+kubectl -n istio-system logs --since=1h istiod-6bc5bc58b4-wvhmc --follow
+```
+
 ## Contributions
 
 Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional details.
@@ -265,17 +271,12 @@ Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional d
 - [AWS EKS, Crossplane, Flux Sample](https://github.com/aws-samples/eks-gitops-crossplane-flux/tree/main)
     - [Blog Reference](https://aws.amazon.com/blogs/containers/gitops-model-for-provisioning-and-bootstrapping-amazon-eks-clusters-using-crossplane-and-argo-cd/)
 - [Istio By Example](https://istiobyexample.dev/grpc/)
-- https://istio.io/latest/about/faq/distributed-tracing/
+- [Distributed Tracing](https://istio.io/latest/about/faq/distributed-tracing/)
 - [Slog Guide](https://betterstack.com/community/guides/logging/logging-in-go/)
-- https://fusionauth.io/articles/tokens/tokens-microservices-boundaries
-- https://pkg.go.dev/net/http/httputil#ReverseProxy
-- https://github.com/coreos/go-oidc/blob/v3/oidc/jwks.go
-- https://github.com/coreos/go-oidc/tree/v3
-- https://jwkset.com/generate
-- https://supertokens.com/static/6f6a1368b9082a0347063eed943d582b/78612/jwks-flow.png
-- https://semaphoreci.com/blog/redis-message-broker
-- https://www.dragonflydb.io/guides/redis-kubernetes
-
-```bash
-kubectl -n istio-system logs --since=1h istiod-6bc5bc58b4-wvhmc --follow
-```
+- [Tokens & Microservice(s)](https://fusionauth.io/articles/tokens/tokens-microservices-boundaries)
+- [Golang Reverse Proxy](https://pkg.go.dev/net/http/httputil#ReverseProxy)
+- [JWKS](https://github.com/coreos/go-oidc/blob/v3/oidc/jwks.go)
+- [CoreOS OIDC](https://github.com/coreos/go-oidc/tree/v3)
+- [Example of Microservice Communication](https://supertokens.com/static/6f6a1368b9082a0347063eed943d582b/78612/jwks-flow.png)
+- [Redis Message Broker](https://semaphoreci.com/blog/redis-message-broker)
+- [Kubernetes & Redis](https://www.dragonflydb.io/guides/redis-kubernetes)

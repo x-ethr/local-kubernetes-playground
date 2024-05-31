@@ -39,10 +39,6 @@ var service string = "service"
 // version is a dynamically linked string value - defaults to "development" - which represents the service's version.
 var version string = "development" // production builds have version dynamically linked
 
-var prefix = map[string]string{
-	(version): "v1", // default version prefix
-}
-
 // ctx, cancel represent the server's runtime context and cancellation handler.
 var ctx, cancel = context.WithCancel(context.Background())
 
@@ -57,14 +53,6 @@ var (
 
 func main() {
 	middlewares := server.Middleware()
-
-	middlewares.Add(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			ctx = context.WithValue(ctx, "logger", logger)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	})
 
 	middlewares.Add(middleware.New().Path().Middleware)
 	middlewares.Add(middleware.New().Envoy().Middleware)
