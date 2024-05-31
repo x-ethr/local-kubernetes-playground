@@ -1,4 +1,4 @@
 export type * from "./types";
 
-export type * from "./user"
-export * from "./user"
+export type * from "./authentication"
+export * from "./authentication"

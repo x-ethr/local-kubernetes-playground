@@ -2,7 +2,7 @@
 
 import Utilities from "node:util";
 import type {Types} from "./src"
-import {User} from "./src";
+import {Authentication} from "./src";
 
 async function Main() {
     const inputs = process.argv.map((value) => {
@@ -10,13 +10,13 @@ async function Main() {
     });
 
     const services = {
-        user: {
+        authentication: {
             main: false,
             register: false
         }
     };
 
-    const help = "Available Options: --help, --user-service, --user-service-registration";
+    const help = "Available Options: --help, --authentication-service, --authentication-service-registration";
 
     for (const argument of inputs) {
         if (argument === "-h" || argument === "--help") {
@@ -27,11 +27,11 @@ async function Main() {
 
     for (const argument of inputs) {
         switch (argument) {
-            case "--user-service":
-                services.user.main = true;
+            case "--authentication-service":
+                services.authentication.main = true;
                 break;
-            case "--user-service-registration":
-                services.user.register = true;
+            case "--authentication-service-registration":
+                services.authentication.register = true;
                 break
         }
     }
@@ -39,7 +39,7 @@ async function Main() {
     const triggers: Map<string, boolean> = new Map();
 
     triggers.set("selection", false);
-    triggers.set("user", false);
+    triggers.set("authentication", false);
 
     Object.entries(services).forEach((entry) => {
         const service = entry[0];
@@ -62,7 +62,7 @@ async function Main() {
     }
 
     const apis = {
-        user: User.Run
+        authentication: Authentication.Run
     };
 
     const counts: { [key: string]: { [key: string]: { successes: 0, failures: 0 } } } = {};
@@ -132,8 +132,6 @@ async function Main() {
     process.stdout.write("\n");
 
     console.log(Utilities.inspect({counts}, {colors: true, depth: 3}));
-
-    // await User.Run(services.user)
 }
 
 (async () => await Main())();

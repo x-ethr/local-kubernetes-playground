@@ -1,0 +1,27 @@
+kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+namespace: development
+images:
+    - name: service:latest
+      newName: localhost:5050/authorization-service
+      newTag: 0.0.37
+resources:
+    - application.yaml
+secretGenerator:
+    - namespace: development
+      name: authorization-service-postgres-secret
+      files:
+        - ./.secrets/PGUSER
+        - ./.secrets/PGPASSWORD
+        - ./.secrets/PGDATABASE
+      options:
+        disableNameSuffixHash: true
+      type: Opaque
+    - namespace: development
+      name: jwt-ecdsa-pem
+      files:
+        - .secrets/ecdsa.public.pem
+        - .secrets/ecdsa.private.pem
+      options:
+        disableNameSuffixHash: true
+      type: Opaque
