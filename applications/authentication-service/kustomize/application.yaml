@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-    name: authorization-service # authorization-service.<namespace>.svc.cluster.local
+    name: authentication-service # authentication-service.<namespace>.svc.cluster.local
     labels:
-        app: authorization-service
-        service: authorization-service
+        app: authentication-service
+        service: authentication-service
 spec:
     selector:
-        app: authorization-service
+        app: authentication-service
     ports:
         -   port: 8080
             targetPort: 8080
@@ -17,34 +17,34 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-    name: authorization-service
+    name: authentication-service
     labels:
-        account: authorization-service
+        account: authentication-service
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: authorization-service
+    name: authentication-service
     labels:
-        app: authorization-service
+        app: authentication-service
         version: v1
-        service: authorization-service
+        service: authentication-service
 spec:
     replicas: 1
     selector:
         matchLabels:
-            app: authorization-service
+            app: authentication-service
             version: v1
-            service: authorization-service
+            service: authentication-service
     template:
         metadata:
             labels:
-                app: authorization-service
+                app: authentication-service
                 version: v1
-                service: authorization-service
+                service: authentication-service
                 sidecar.istio.io/inject: "true"
         spec:
-            serviceAccountName: authorization-service
+            serviceAccountName: authentication-service
             volumes:
                 -   name: jwt-ecdsa-pem
                     secret:
@@ -55,7 +55,7 @@ spec:
                         secretName: jwt-signing-token
                         optional: false
             containers:
-                -   name: authorization-service
+                -   name: authentication-service
                     livenessProbe:
                         httpGet:
                             port: 8080
@@ -68,7 +68,7 @@ spec:
                         -   containerPort: 8080
                     envFrom:
                         -   secretRef:
-                                name: authorization-service-postgres-secret
+                                name: authentication-service-postgres-secret
                     env:
                         -   name: CI
                             value: "true"
@@ -123,6 +123,42 @@ spec:
                         -   name: jwt-signing-token
                             readOnly: true
                             mountPath: "/etc/secrets/jwt-signing-token"
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+    name: authentication-service
+    labels:
+        sidecar.istio.io/inject: "true"
+spec:
+    parentRefs:
+        -   name: api-gateway
+            kind: Gateway
+            namespace: development
+            group: "gateway.networking.k8s.io"
+    rules:
+        -   matches:
+                -   path:
+                        type: PathPrefix
+                        value: /v1/authentication
+            filters:
+                -   type: URLRewrite
+                    urlRewrite:
+                        path:
+                            type: ReplacePrefixMatch
+                            replacePrefixMatch: /
+                -   type: RequestHeaderModifier
+                    requestHeaderModifier:
+                        add:
+                            -   name: "X-API-Version"
+                                value: "v1"
+            backendRefs:
+                -   name: authentication-service
+                    kind: Service
+                    weight: 100
+                    port: 8080
+
 #---
 #apiVersion: autoscaling/v2
 #kind: HorizontalPodAutoscaler

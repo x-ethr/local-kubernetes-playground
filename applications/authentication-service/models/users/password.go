@@ -15,13 +15,13 @@ func Hash(password string) (string, error) {
 	return string(bytes), err
 }
 
-func Verify(hashed, password string) bool {
+func Verify(hashed, password string) error {
 	err := bcrypt.CompareHashAndPassword([]byte(hashed), []byte(password))
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-		return false
+		return bcrypt.ErrMismatchedHashAndPassword
 	} else if err != nil {
 		slog.Error("Unexpected Error While Comparing Hash & Password", slog.String("error", err.Error()))
 	}
 
-	return err == nil
+	return err
 }

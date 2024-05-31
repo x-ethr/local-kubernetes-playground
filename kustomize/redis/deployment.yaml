@@ -1,35 +1,43 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: postgres
+    name: redis
 spec:
     replicas: 1
     selector:
         matchLabels:
-            app: postgres
+            app: redis
     template:
         metadata:
             labels:
-                app: postgres
+                app: redis
                 version: v1
                 sidecar.istio.io/inject: "true"
         spec:
             containers:
-                -   name: postgres
-                    image: postgres:16
+                -   name: redis
+                    image: redis:7
                     imagePullPolicy: Always
+                    command:
+                        - redis-server
+                        - "/redis-master/redis.conf"
                     ports:
-                        -   containerPort: 5432
-                    envFrom:
-                        -   secretRef:
-                                name: postgres-database-secret
+                        -   containerPort: 6379
+
                     env:
-                        -   name: POSTGRES_INITDB_ARGS
-                            value: ""
+                        -   name: MASTER
+                            value: "true"
                     volumeMounts:
-                        -   mountPath: /var/lib/postgresql/data
-                            name: postgresdata
+                        -   mountPath: /redis-master-data
+                            name: data
+                        -   mountPath: /redis-master
+                            name: configuration
             volumes:
-                -   name: postgresdata
-                    persistentVolumeClaim:
-                        claimName: postgres-volume-claim
+                -   name: data
+                    emptyDir: { }
+                -   name: configuration
+                    configMap:
+                        name: redis-configuration
+                        items:
+                            -   key: redis-config
+                                path: redis.conf

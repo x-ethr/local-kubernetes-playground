@@ -1,9 +1,12 @@
-package registration
+package login
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/x-ethr/pg"
+	"github.com/x-ethr/server/cookies"
 	"github.com/x-ethr/server/handler/input"
 	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/middleware"
@@ -15,72 +18,80 @@ import (
 	"authentication-service/models/users"
 )
 
-func processor(r *http.Request, input *Body, output chan<- *types.Response, exception chan<- *types.Exception, options *types.Options) {
-	const name = "registration"
+func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<- *types.Response, exception chan<- *types.Exception, options *types.Options) {
+	const name = "login"
 
 	ctx := r.Context()
 
-	tracing := middleware.New().Tracer().Value(ctx)
-	version := middleware.New().Version().Value(ctx)
+	labeler := telemetry.Labeler(ctx)
 	service := middleware.New().Service().Value(ctx)
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(service).Start(ctx, name)
 
-	ctx, span := tracing.Start(ctx, name, trace.WithAttributes(attribute.String("component", name)), trace.WithAttributes(telemetry.Resources(ctx, service, version.Service).Attributes()...))
+	defer span.End()
 
-	user := &users.CreateParams{Email: input.Email}
+	cookie, e := r.Cookie("token")
+	if e == nil {
+		jwttoken, e := token.Verify(ctx, cookie.Value)
+		if e == nil && jwttoken.Valid {
+			if email, ok := jwttoken.Claims.(jwt.MapClaims)["sub"].(string); ok {
+				span.AddEvent("authenticated-established-user-login-attempt", trace.WithAttributes(attribute.String("email", email)))
+			}
+
+			labeler.Add(attribute.Bool("error", true))
+			exception <- &types.Exception{Code: http.StatusBadRequest, Message: "Authenticated Session Already Exists for User", Log: "Authentication User Attempted to Login"}
+			return
+		}
+	}
 
 	dsn := pg.DSN()
 	connection, e := pg.Connection(ctx, dsn)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Establish Connection to Database", Source: e}
 		return
 	}
 
 	defer connection.Release()
 
-	count, e := users.New(connection).Count(ctx, user.Email)
+	count, e := users.New().Count(ctx, connection, input.Email)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Check if User Exist(s)", Source: e}
 		return
-	} else if count >= 1 {
-		exception <- &types.Exception{Code: http.StatusConflict, Message: "Account With Email Address Already Exists"}
+	} else if count == 0 {
+		exception <- &types.Exception{Code: http.StatusNotFound, Message: "User Not Found", Source: fmt.Errorf("user not found: %s", input.Email)}
 		return
 	}
 
-	password := input.Password
-	user.Password, e = users.Hash(password)
+	user, e := users.New().Get(ctx, connection, input.Email)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unknown Exception - Unable to Hash User's Password"}
+		labeler.Add(attribute.Bool("error", true))
+		exception <- &types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Retrieve User Record", Source: e}
 		return
 	}
 
-	result, e := users.New(connection).Create(ctx, user)
-	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create New User"}
+	if e := users.Verify(user.Password, input.Password); e != nil {
+		labeler.Add(attribute.Bool("error", true))
+		exception <- &types.Exception{Code: http.StatusUnauthorized, Log: "Invalid Authentication Attempt", Source: e}
 		return
 	}
 
-	jwt, e := token.Create(ctx, result.Email)
+	jwt, e := token.Create(ctx, user.Email)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(false))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create JWT"}
 		return
 	}
 
-	var payload = map[string]interface{}{
-		"token": jwt,
-	}
+	cookies.Secure(w, "token", jwt)
 
-	output <- &types.Response{Code: http.StatusCreated, Payload: payload}
+	output <- &types.Response{Code: http.StatusOK, Payload: jwt}
 
 	return
 }
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+var Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	input.Process(w, r, v, processor)
 
 	return
-}
+})

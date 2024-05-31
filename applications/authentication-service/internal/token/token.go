@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -77,24 +76,23 @@ func init() {
 	pkey = pempublic
 }
 
-func Create(ctx context.Context, email string) (string, int64, error) {
-	expiration := time.Now().Add(time.Minute * 5).Unix()
-	token := jwt.NewWithClaims(jwt.SigningMethodES256,
-		jwt.MapClaims{
-			"iss": "authorization-service",
-			"sub": "user-service",
-			"aud": email,
-			"exp": expiration,
-		})
+func Create(ctx context.Context, email string) (string, error) {
+	expiration := time.Now().Add(time.Hour * 3).Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodES256, jwt.MapClaims{
+		"iss": "authentication-service",
+		"sub": email,
+		"aud": "client",
+		"exp": expiration,
+	})
 
 	jwt, e := token.SignedString(key)
 	if e != nil {
 		slog.WarnContext(ctx, "Error Signing JWT Token", slog.String("email", email), slog.String("error", e.Error()))
 
-		return "", 0, e
+		return "", e
 	}
 
-	return jwt, expiration, nil
+	return jwt, nil
 }
 
 func Verify(ctx context.Context, t string) (*jwt.Token, error) {
@@ -110,27 +108,25 @@ func Verify(ctx context.Context, t string) (*jwt.Token, error) {
 	})
 
 	if e != nil {
-		slog.WarnContext(ctx, "Error Parsing JWT Token", slog.String("error", e.Error()))
+		slog.WarnContext(ctx, "Error Parsing JWT Token", slog.String("error", e.Error()), slog.String("jwt", t))
 		return nil, e
 	}
 
 	switch {
 	case token.Valid:
-		slog.DebugContext(ctx, "Verified Valid Token", slog.Any("token", token))
+		slog.DebugContext(ctx, "Verified Valid Token")
 		return token, nil
 	case errors.Is(e, jwt.ErrTokenMalformed):
 		slog.WarnContext(ctx, "Unable to Verify Malformed String as JWT Token", slog.String("error", e.Error()))
 	case errors.Is(e, jwt.ErrTokenSignatureInvalid):
 		// Invalid signature
-		slog.WarnContext(ctx, "Invalid JWT Signature", slog.Any("token", token), slog.String("error", e.Error()))
+		slog.WarnContext(ctx, "Invalid JWT Signature", slog.String("error", e.Error()))
 	case errors.Is(e, jwt.ErrTokenExpired):
-		slog.WarnContext(ctx, "Expired JWT Token", slog.Any("token", token), slog.String("error", e.Error()))
-		// Token is either expired or not active yet
-		fmt.Println("Timing is everything")
+		slog.WarnContext(ctx, "Expired JWT Token", slog.String("error", e.Error()))
 	case errors.Is(e, jwt.ErrTokenNotValidYet):
-		slog.WarnContext(ctx, "Received a Future, Valid JWT Token", slog.Any("token", token), slog.String("error", e.Error()))
+		slog.WarnContext(ctx, "Received a Future, Valid JWT Token", slog.String("error", e.Error()))
 	default:
-		slog.ErrorContext(ctx, "Unknown Error While Attempting to Validate JWT Token", slog.Any("token", token), slog.String("error", e.Error()))
+		slog.ErrorContext(ctx, "Unknown Error While Attempting to Validate JWT Token", slog.String("error", e.Error()))
 	}
 
 	return nil, e

@@ -14,17 +14,15 @@ import (
 
 	"github.com/x-ethr/environment"
 	"github.com/x-ethr/server"
-	"github.com/x-ethr/server/handler"
-	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/logging"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/middleware/name"
 	"github.com/x-ethr/server/middleware/servername"
 	"github.com/x-ethr/server/middleware/timeout"
+	"github.com/x-ethr/server/middleware/tracing"
 	"github.com/x-ethr/server/middleware/versioning"
 	"github.com/x-ethr/server/telemetry"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 
 	"user-service/internal/api/metadata"
 	"user-service/internal/api/registration"
@@ -74,11 +72,13 @@ func main() {
 	middlewares.Add(middleware.New().Version().Configuration(func(options *versioning.Settings) { options.Version.Service = version }).Middleware)
 	middlewares.Add(middleware.New().Telemetry().Middleware)
 
+	middlewares.Add(middleware.New().Tracer().Configuration(func(options *tracing.Settings) { options.Tracer = tracer }).Middleware)
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /", metadata.Handler()
+	mux.HandleFunc("GET /", metadata.Handler)
 
-	mux.HandleFunc("POST /register", registration.Handler(tracer))
+	mux.HandleFunc("POST /register", registration.Handler)
 
 	mux.HandleFunc("GET /health", server.Health)
 

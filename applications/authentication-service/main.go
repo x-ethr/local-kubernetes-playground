@@ -21,11 +21,13 @@ import (
 	"github.com/x-ethr/server/middleware/tracing"
 	"github.com/x-ethr/server/middleware/versioning"
 	"github.com/x-ethr/server/telemetry"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 
-	"authorization-service/internal/api/metadata"
-	"authorization-service/internal/api/user/create"
-	"authorization-service/internal/jwks"
+	"authentication-service/internal/api/login"
+	"authentication-service/internal/api/metadata"
+	"authentication-service/internal/api/refresh"
+	"authentication-service/internal/api/registration"
 )
 
 // header is a dynamically linked string value - defaults to "server" - which represents the server name.
@@ -75,13 +77,14 @@ func main() {
 	middlewares.Add(middleware.New().Tracer().Configuration(func(options *tracing.Settings) { options.Tracer = tracer }).Middleware)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", metadata.Handler)
 
-	mux.HandleFunc("POST /users", create.Handler)
+	mux.Handle("GET /", otelhttp.WithRouteTag("/", metadata.Handler))
+
+	mux.Handle("POST /register", otelhttp.WithRouteTag("/register", registration.Handler))
+	mux.Handle("POST /refresh", otelhttp.WithRouteTag("/refresh", refresh.Handler))
+	mux.Handle("POST /login", otelhttp.WithRouteTag("/login", login.Handler))
 
 	mux.HandleFunc("GET /health", server.Health)
-
-	mux.HandleFunc("GET /.well-known/jwks.json", jwks.JWKs)
 
 	// Start the HTTP server
 	slog.Info("Starting Server ...", slog.String("local", fmt.Sprintf("http://localhost:%s", *(port))))
@@ -101,6 +104,7 @@ func main() {
 			options.Logs.Local = true
 		}
 	})
+
 	if e != nil {
 		panic(e)
 	}

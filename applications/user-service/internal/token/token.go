@@ -6,17 +6,16 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var h []byte
 var key *ecdsa.PrivateKey
 var pkey *ecdsa.PublicKey
 
@@ -68,66 +67,81 @@ func init() {
 		panic(e)
 	}
 
+	e = filepath.WalkDir("/etc/secrets/jwt-signing-token", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !(d.IsDir()) && d.Type().IsRegular() {
+			value, e := os.ReadFile(path)
+			if e != nil {
+				return e
+			}
+
+			configurations[d.Name()] = value
+		}
+
+		return nil
+	})
+
+	if e != nil {
+		slog.Error("Error Walking Secrets Volume Mount", slog.String("error", e.Error()))
+		panic(e)
+	}
+
 	for key, bytes := range configurations {
 		slog.Info("Secret", slog.String("key", key), slog.String("value", string(bytes)))
 	}
 
 	pemprivate, pempublic := decode(configurations["ecdsa.private.pem"], configurations["ecdsa.public.pem"])
 
+	h = configurations["jwt-signing-token"]
+
 	key = pemprivate
 	pkey = pempublic
 }
 
-func Create(ctx context.Context, email string) (string, int64, error) {
-	expiration := time.Now().Add(time.Hour * 24).Unix()
-	token := jwt.NewWithClaims(jwt.SigningMethodES256,
-		jwt.MapClaims{
-			"iss": "my-auth-server",
-			"sub": "user-service",
-			"aud": email,
-			"exp": expiration,
-		})
-
-	jwt, e := token.SignedString(key)
-	if e != nil {
-		slog.WarnContext(ctx, "Error Signing JWT Token", slog.String("email", email), slog.String("error", e.Error()))
-
-		return "", 0, e
+func Create(ctx context.Context, token *jwt.Token) (string, error) {
+	hmactoken := jwt.New(jwt.SigningMethodHS256)
+	hmacclaims := hmactoken.Claims.(jwt.MapClaims)
+	for key, element := range token.Claims.(jwt.MapClaims) {
+		hmacclaims[key] = element
 	}
 
-	return jwt, expiration, nil
+	expiration := time.Now().Add(time.Hour * 1).Unix()
+	hmacclaims["exp"] = expiration
+
+	hmactokenstring, e := hmactoken.SignedString(h)
+	if e != nil {
+		slog.WarnContext(ctx, "Error Signing JWT Token", slog.Any("token", token), slog.String("error", e.Error()))
+
+		return "", e
+	}
+
+	return hmactokenstring, nil
 }
 
-func Verify(ctx context.Context, t string) error {
+func Verify(ctx context.Context, t string) (*jwt.Token, error) {
 	token, e := jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
 		v, ok := token.Method.(*jwt.SigningMethodECDSA)
 		if !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, jwt.ErrTokenSignatureInvalid
 		}
 
-		parts := strings.Split(t, ".")
+		_ = v
 
-		sig, e := jwt.NewParser().DecodeSegment(strings.Join(parts[0:2], "."))
-		if e != nil {
-			return nil, e
-		}
-
-		if e := v.Verify(strings.Join(parts[0:2], "."), sig, pkey); e != nil {
-			return nil, e
-		}
-
-		return &pkey, nil
+		return pkey, nil
 	})
 
 	if e != nil {
 		slog.WarnContext(ctx, "Error Parsing JWT Token", slog.String("error", e.Error()))
-		return e
+		return nil, e
 	}
 
 	switch {
 	case token.Valid:
 		slog.DebugContext(ctx, "Verified Valid Token", slog.Any("token", token))
-		return nil
+		return token, nil
 	case errors.Is(e, jwt.ErrTokenMalformed):
 		slog.WarnContext(ctx, "Unable to Verify Malformed String as JWT Token", slog.String("error", e.Error()))
 	case errors.Is(e, jwt.ErrTokenSignatureInvalid):
@@ -135,13 +149,11 @@ func Verify(ctx context.Context, t string) error {
 		slog.WarnContext(ctx, "Invalid JWT Signature", slog.Any("token", token), slog.String("error", e.Error()))
 	case errors.Is(e, jwt.ErrTokenExpired):
 		slog.WarnContext(ctx, "Expired JWT Token", slog.Any("token", token), slog.String("error", e.Error()))
-		// Token is either expired or not active yet
-		fmt.Println("Timing is everything")
 	case errors.Is(e, jwt.ErrTokenNotValidYet):
 		slog.WarnContext(ctx, "Received a Future, Valid JWT Token", slog.Any("token", token), slog.String("error", e.Error()))
 	default:
 		slog.ErrorContext(ctx, "Unknown Error While Attempting to Validate JWT Token", slog.Any("token", token), slog.String("error", e.Error()))
 	}
 
-	return e
+	return nil, e
 }

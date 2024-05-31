@@ -1,4 +1,4 @@
-module authorization-service
+module authentication-service
 
 go 1.22.3
 
@@ -6,8 +6,9 @@ require (
 	github.com/go-playground/validator/v10 v10.20.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/jackc/pgx/v5 v5.6.0
-	github.com/x-ethr/pg v0.1.4
-	github.com/x-ethr/server v0.3.38
+	github.com/x-ethr/pg v0.1.5
+	github.com/x-ethr/server v0.3.58
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0
 	go.opentelemetry.io/otel v1.27.0
 	go.opentelemetry.io/otel/trace v1.27.0
 	golang.org/x/crypto v0.23.0
@@ -31,7 +32,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/x-ethr/color v0.1.3 // indirect
 	github.com/x-ethr/text v0.1.19 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.3.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.27.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.27.0 // indirect

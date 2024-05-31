@@ -45,6 +45,15 @@ spec:
                 sidecar.istio.io/inject: "true"
         spec:
             serviceAccountName: user-service
+            volumes:
+                -   name: jwt-ecdsa-pem
+                    secret:
+                        secretName: jwt-ecdsa-pem
+                        optional: false
+                -   name: jwt-signing-token
+                    secret:
+                        secretName: jwt-signing-token
+                        optional: false
             containers:
                 -   name: user-service
                     livenessProbe:
@@ -107,6 +116,13 @@ spec:
                                     fieldPath: metadata.labels['app']
                         -   name: "PGCONNECT_TIMEOUT"
                             value: "10"
+                    volumeMounts:
+                        -   name: jwt-ecdsa-pem
+                            readOnly: true
+                            mountPath: "/etc/secrets/jwt-ecdsa-pem"
+                        -   name: jwt-signing-token
+                            readOnly: true
+                            mountPath: "/etc/secrets/jwt-signing-token"
 
 ---
 apiVersion: gateway.networking.k8s.io/v1beta1

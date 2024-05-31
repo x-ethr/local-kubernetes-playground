@@ -3,3 +3,5 @@
 .eclipse
 
 .DS_Store
+
+**/*.pem

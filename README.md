@@ -1,17 +1,21 @@
 # `local-kubernetes-playground`
 
-Software engineers at ETHR previously used a variation of the following project as a playground for software development, automation testing,
+Software engineers at ETHR previously used a variation of the following project as a playground for software
+development, automation testing,
 research, and for demonstrating proof-of-concepts.
 
-This playground was the motivation behind establishing `x-ethr` and its related open-source repositories. 
+This playground was the motivation behind establishing `x-ethr` and its related open-source repositories.
 
 > [!IMPORTANT]
-> The following project requires an expansive amount of knowledge around cloud-providers (AWS), development, kubernetes, and overall
-> systems. While the guide can be followed step-by-step to produce a fully functioning cluster, there are [requirements](#requirements)
+> The following project requires an expansive amount of knowledge around cloud-providers (AWS), development, kubernetes,
+> and overall
+> systems. While the guide can be followed step-by-step to produce a fully functioning cluster, there
+> are [requirements](#requirements)
 > that would be challenging for beginners to 1. understand, 2. setup, 3. debug.
-> 
-> If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply following the [usage](#usage) section.
-> 
+>
+> If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply
+> following the [usage](#usage) section.
+>
 > Users of `local-kubernetes-playground` will involve themselves in the following disciplines:
 > - Software Engineering
 > - DevOps
@@ -30,7 +34,8 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 ## Requirements
 
 > [!IMPORTANT]
-> Usage, requirements, and documentation was vetted on a Mac Studio, M1 Max 2022 on MacOS, Sonoma 14.5. Other systems are likely subject to
+> Usage, requirements, and documentation was vetted on a Mac Studio, M1 Max 2022 on MacOS, Sonoma 14.5. Other systems
+> are likely subject to
 > incompatibilities.
 
 ###### System
@@ -58,12 +63,13 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
 - GitHub PAT
 
 - A valid AWS account
-  - A configured `default` profile
-  - Secrets in AWS SecretsManager for local development purposes. See the scripts' sections in [usage](#usage) for details.
+    - A configured `default` profile
+    - Secrets in AWS SecretsManager for local development purposes. See the scripts' sections in [usage](#usage) for
+      details.
 
 ###### Optional(s)
 
-- [OpenLens](https://github.com/MuhammedKalkan/OpenLens) - Kubernetes UI Dashboard 
+- [OpenLens](https://github.com/MuhammedKalkan/OpenLens) - Kubernetes UI Dashboard
 
 ## Usage
 
@@ -103,11 +109,13 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     kubectl apply --kustomize ./kustomize/secrets --wait
     ```
     - Requires `aws-cli` is installed with a valid `default` profile.
-    - Assumes a secret in SecretsManager called `local/external-secrets/provider/aws/credentials` exists, and contains the following contents:
+    - Assumes a secret in SecretsManager called `local/external-secrets/provider/aws/credentials` exists, and contains
+      the following contents:
         ```
         "{\"aws-access-key-id\":\"...\",\"aws-secret-access-key\":\"...\"}"
         ```
-       - By no means should this secret contain credentials to Administrative function(s). Lock this API user's access down, as it's really only for local development purposes.
+        - By no means should this secret contain credentials to Administrative function(s). Lock this API user's access
+          down, as it's really only for local development purposes.
 4. Bootstrap.
     ```bash
     flux bootstrap github --repository "https://github.com/x-ethr/cluster-management" \
@@ -116,7 +124,8 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
         --personal "false" \
         --path "clusters/local"
     ```
-   - For users outside the `x-ethr` organization, fork, import, or copy the https://github.com/x-ethr/cluster-management repository; or use a customized Flux GitOps project.
+    - For users outside the `x-ethr` organization, fork, import, or copy
+      the https://github.com/x-ethr/cluster-management repository; or use a customized Flux GitOps project.
 5. Sync local cluster repository's `vendors`.
     ```bash
     git submodule update --remote --recursive
@@ -139,11 +148,21 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     bash ./scripts/registry.bash
     ```
 10. Wait for the various resources to reconcile successfully.
-11. Initialize the kubernetes gateway.
+11. Generate ECDSA key(s) and a jwt signing key all of `development`.
+    ```bash
+    ethr-cli ecdsa --mkdir --file "./applications/.secrets/ecdsa"
+    ethr-cli random token --length 32 > "./applications/.secrets/jwt-signing-key"
+    ```
+12. Initialize the kubernetes gateway and primary `development` resource(s).
     ```bash
     kubectl apply --kustomize ./applications
     ```
-12. Setup and deploy the database(s).
+13. Deploy redis.
+    ```bash
+    kubectl apply --kustomize ./kustomize/redis --wait
+    kubectl port-forward --namespace caching services/redis 6379:6379
+    ```
+14. Setup and deploy the database(s).
     ```bash
     mkdir -p ./kustomize/database/.secrets
 
@@ -156,10 +175,10 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     cp -f ./kustomize/database/.secrets/POSTGRES_PASSWORD ./applications/user-service/kustomize/.secrets/PGPASSWORD
     printf "%s" "user-service" > ./applications/user-service/kustomize/.secrets/PGDATABASE
     
-    mkdir -p ./applications/authorization-service/kustomize/.secrets
-    cp -f ./kustomize/database/.secrets/POSTGRES_USER ./applications/authorization-service/kustomize/.secrets/PGUSER
-    cp -f ./kustomize/database/.secrets/POSTGRES_PASSWORD ./applications/authorization-service/kustomize/.secrets/PGPASSWORD
-    printf "%s" "authorization-service" > ./applications/authorization-service/kustomize/.secrets/PGDATABASE
+    mkdir -p ./applications/authentication-service/kustomize/.secrets
+    cp -f ./kustomize/database/.secrets/POSTGRES_USER ./applications/authentication-service/kustomize/.secrets/PGUSER
+    cp -f ./kustomize/database/.secrets/POSTGRES_PASSWORD ./applications/authentication-service/kustomize/.secrets/PGPASSWORD
+    printf "%s" "authentication-service" > ./applications/authentication-service/kustomize/.secrets/PGDATABASE
     
     function uri() {
         printf "%s:%s:%s:%s:%s" "localhost" "5432" "postgres" "$(head ./kustomize/database/.secrets/POSTGRES_USER)" "$(head ./kustomize/database/.secrets/POSTGRES_PASSWORD)"
@@ -173,25 +192,28 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     
     kubectl rollout status --namespace database deployment postgres
     ```
-13. Port-forward the database.
+15. Port-forward the database.
     ```bash
     kubectl port-forward --namespace database services/postgres 5432:5432
     ```
-14. Create service-specific databases (in a true [microservice](https://microservices.io/patterns/data/database-per-service.html) environment, such a setup likely would different).
+16. Create service-specific databases (in a
+    true [microservice](https://microservices.io/patterns/data/database-per-service.html) environment, such a setup
+    likely would different).
     ```bash
     psql -h "localhost" -U "api-service-user" -p "5432" "postgres"
     ```
 
     ```postgresql
     CREATE DATABASE "user-service" WITH OWNER = "api-service-user";
-    CREATE DATABASE "authorization-service" WITH OWNER = "api-service-user";
+    CREATE DATABASE "authentication-service" WITH OWNER = "api-service-user";
     ```
-15. Execute the various `schema.sql` files listed throughout the `./applications/**/models` directories.
-16. Deploy all service(s).
+17. Execute the various `schema.sql` files listed throughout the `./applications/**/models` directories.
+18. Deploy all service(s).
     ```bash
     make -C ./applications
     ```
-    - *Note*: the Makefile targets in the ./applications directory will version bump all services, and requires a running container registry: `localhost:5050`. 
+    - *Note*: the Makefile targets in the ./applications directory will version bump all services, and requires a
+      running container registry: `localhost:5050`.
 
 ### Service-Mesh
 
@@ -210,6 +232,8 @@ for i in $(seq 1 250); do
     curl "http://localhost:8080/v1/test-service-1"
     curl "http://localhost:8080/v1/test-service-2"
     curl "http://localhost:8080/v1/test-service-2/alpha"
+    
+    curl "http://localhost:8080/v1/authentication"
 done
 ```
 
@@ -236,10 +260,22 @@ Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional d
 ## External Reference(s)
 
 - [Official Schema Store](https://github.com/SchemaStore/schemastore/tree/master/src/schemas/json)
-  - [OpenAPI 3.1](https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/schemas/v3.1/schema.json)
-  - [OpenAPI 3.0](https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/schemas/v3.0/schema.json)
+    - [OpenAPI 3.1](https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/schemas/v3.1/schema.json)
+    - [OpenAPI 3.0](https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/schemas/v3.0/schema.json)
 - [AWS EKS, Crossplane, Flux Sample](https://github.com/aws-samples/eks-gitops-crossplane-flux/tree/main)
     - [Blog Reference](https://aws.amazon.com/blogs/containers/gitops-model-for-provisioning-and-bootstrapping-amazon-eks-clusters-using-crossplane-and-argo-cd/)
 - [Istio By Example](https://istiobyexample.dev/grpc/)
 - https://istio.io/latest/about/faq/distributed-tracing/
 - [Slog Guide](https://betterstack.com/community/guides/logging/logging-in-go/)
+- https://fusionauth.io/articles/tokens/tokens-microservices-boundaries
+- https://pkg.go.dev/net/http/httputil#ReverseProxy
+- https://github.com/coreos/go-oidc/blob/v3/oidc/jwks.go
+- https://github.com/coreos/go-oidc/tree/v3
+- https://jwkset.com/generate
+- https://supertokens.com/static/6f6a1368b9082a0347063eed943d582b/78612/jwks-flow.png
+- https://semaphoreci.com/blog/redis-message-broker
+- https://www.dragonflydb.io/guides/redis-kubernetes
+
+```bash
+kubectl -n istio-system logs --since=1h istiod-6bc5bc58b4-wvhmc --follow
+```

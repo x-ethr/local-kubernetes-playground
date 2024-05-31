@@ -9,6 +9,9 @@ LIMIT 1;
 -- name: Create :one
 INSERT INTO "User" (email, password) VALUES ($1, $2) RETURNING id, email;
 
+-- name: Get :one
+SELECT email, password FROM "User" WHERE email = $1;
+
 -- name: Count :one
 -- Count returns 0 or 1 depending on if a User record matching the provided email exists.
 SELECT count(*) FROM "User" WHERE (email) = sqlc.arg(email)::text AND (deletion) IS NULL;

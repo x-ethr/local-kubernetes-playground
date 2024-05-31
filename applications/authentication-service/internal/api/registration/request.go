@@ -1,4 +1,4 @@
-package signup
+package registration
 
 import (
 	"github.com/go-playground/validator/v10"
@@ -7,9 +7,9 @@ import (
 
 // Body represents the handler's structured request-body
 type Body struct {
-	types.Helper
-	Email    string `json:"email" validate:"required,email"`           // Email represents the user's required email address.
-	Password string `json:"password" validate:"required,min=8,max=72"` // Password represents the user's required password.
+	types.Helper `json:"-"`
+	Email        string `json:"email" validate:"required,email"`           // Email represents the user's required email address.
+	Password     string `json:"password" validate:"required,min=8,max=72"` // Password represents the user's required password.
 }
 
 func (b *Body) Help() types.Validators {

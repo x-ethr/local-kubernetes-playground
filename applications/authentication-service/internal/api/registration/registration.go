@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/x-ethr/pg"
+	"github.com/x-ethr/server/cookies"
 	"github.com/x-ethr/server/handler/input"
 	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/middleware"
@@ -15,32 +16,42 @@ import (
 	"authentication-service/models/users"
 )
 
-func processor(r *http.Request, input *Body, output chan<- *types.Response, exception chan<- *types.Exception, options *types.Options) {
+func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<- *types.Response, exception chan<- *types.Exception, options *types.Options) {
 	const name = "registration"
 
 	ctx := r.Context()
 
-	tracing := middleware.New().Tracer().Value(ctx)
-	version := middleware.New().Version().Value(ctx)
+	labeler := telemetry.Labeler(ctx)
 	service := middleware.New().Service().Value(ctx)
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(service).Start(ctx, name)
 
-	ctx, span := tracing.Start(ctx, name, trace.WithAttributes(attribute.String("component", name)), trace.WithAttributes(telemetry.Resources(ctx, service, version.Service).Attributes()...))
+	defer span.End()
+
+	cookie, e := r.Cookie("token")
+	if e == nil {
+		jwttoken, e := token.Verify(ctx, cookie.Value)
+		if e == nil && jwttoken.Valid {
+			labeler.Add(attribute.Bool("error", true))
+			exception <- &types.Exception{Code: http.StatusBadRequest, Message: "Authenticated Session Already Exists for User", Log: "Authentication User Attempted to Register"}
+			return
+		}
+	}
 
 	user := &users.CreateParams{Email: input.Email}
 
 	dsn := pg.DSN()
 	connection, e := pg.Connection(ctx, dsn)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Establish Connection to Database", Source: e}
 		return
 	}
 
 	defer connection.Release()
 
-	count, e := users.New(connection).Count(ctx, user.Email)
+	count, e := users.New().Count(ctx, connection, user.Email)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Check if User Exist(s)", Source: e}
 		return
 	} else if count >= 1 {
@@ -51,21 +62,21 @@ func processor(r *http.Request, input *Body, output chan<- *types.Response, exce
 	password := input.Password
 	user.Password, e = users.Hash(password)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unknown Exception - Unable to Hash User's Password"}
 		return
 	}
 
-	result, e := users.New(connection).Create(ctx, user)
+	result, e := users.New().Create(ctx, connection, user)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(true))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create New User"}
 		return
 	}
 
 	jwt, e := token.Create(ctx, result.Email)
 	if e != nil {
-		span.RecordError(e, trace.WithStackTrace(false))
+		labeler.Add(attribute.Bool("error", true))
 		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create JWT"}
 		return
 	}
@@ -74,13 +85,15 @@ func processor(r *http.Request, input *Body, output chan<- *types.Response, exce
 		"token": jwt,
 	}
 
+	cookies.Secure(w, "token", jwt)
+
 	output <- &types.Response{Code: http.StatusCreated, Payload: payload}
 
 	return
 }
 
-func Handler(w http.ResponseWriter, r *http.Request) {
+var Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	input.Process(w, r, v, processor)
 
 	return
-}
+})

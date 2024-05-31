@@ -10,3 +10,20 @@ resources:
     - telemetry.yaml
     - server-passthrough-filter.yaml
     - server-filter.yaml
+
+secretGenerator:
+    -   namespace: development
+        name: jwt-signing-token
+        files:
+            - .secrets/jwt-signing-token
+        options:
+            disableNameSuffixHash: true
+        type: Opaque
+    -   namespace: development
+        name: jwt-ecdsa-pem
+        files:
+            - .secrets/ecdsa.public.pem
+            - .secrets/ecdsa.private.pem
+        options:
+            disableNameSuffixHash: true
+        type: Opaque

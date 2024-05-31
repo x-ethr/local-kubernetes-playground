@@ -1,1 +1,1 @@
-package signup
+package registration
