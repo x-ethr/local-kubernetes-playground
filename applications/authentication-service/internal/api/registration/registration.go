@@ -5,7 +5,7 @@ import (
 
 	"github.com/x-ethr/pg"
 	"github.com/x-ethr/server/cookies"
-	"github.com/x-ethr/server/handler/input"
+	"github.com/x-ethr/server/handler"
 	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/telemetry"
@@ -16,10 +16,10 @@ import (
 	"authentication-service/models/users"
 )
 
-func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<- *types.Response, exception chan<- *types.Exception, options *types.Options) {
+func processor(x *types.CTX) {
 	const name = "registration"
 
-	ctx := r.Context()
+	ctx := x.Request().Context()
 
 	labeler := telemetry.Labeler(ctx)
 	service := middleware.New().Service().Value(ctx)
@@ -27,15 +27,24 @@ func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<
 
 	defer span.End()
 
-	cookie, e := r.Cookie("token")
+	cookie, e := x.Request().Cookie("token")
 	if e == nil {
 		jwttoken, e := token.Verify(ctx, cookie.Value)
 		if e == nil && jwttoken.Valid {
 			labeler.Add(attribute.Bool("error", true))
-			exception <- &types.Exception{Code: http.StatusBadRequest, Message: "Authenticated Session Already Exists for User", Log: "Authentication User Attempted to Register"}
+			x.Error(&types.Exception{Code: http.StatusBadRequest, Message: "Authenticated Session Already Exists for User", Log: "Authentication User Attempted to Register"})
 			return
 		}
 	}
+
+	generic, e := x.Input()
+	if e != nil {
+		labeler.Add(attribute.Bool("error", true))
+		x.Error(&types.Exception{Code: http.StatusInternalServerError, Message: http.StatusText(http.StatusInternalServerError), Log: "Validator Failed to Hydrate CTX Input"})
+		return
+	}
+
+	var input = generic.(Body)
 
 	user := &users.CreateParams{Email: input.Email}
 
@@ -43,7 +52,7 @@ func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<
 	connection, e := pg.Connection(ctx, dsn)
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Establish Connection to Database", Source: e}
+		x.Error(&types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Establish Connection to Database", Source: e})
 		return
 	}
 
@@ -52,10 +61,10 @@ func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<
 	count, e := users.New().Count(ctx, connection, user.Email)
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Check if User Exist(s)", Source: e}
+		x.Error(&types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Check if User Exist(s)", Source: e})
 		return
 	} else if count >= 1 {
-		exception <- &types.Exception{Code: http.StatusConflict, Message: "Account With Email Address Already Exists"}
+		x.Error(&types.Exception{Code: http.StatusConflict, Message: "Account With Email Address Already Exists"})
 		return
 	}
 
@@ -63,21 +72,21 @@ func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<
 	user.Password, e = users.Hash(password)
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unknown Exception - Unable to Hash User's Password"}
+		x.Error(&types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unknown Exception - Unable to Hash User's Password"})
 		return
 	}
 
 	result, e := users.New().Create(ctx, connection, user)
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create New User"}
+		x.Error(&types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create New User"})
 		return
 	}
 
 	jwt, e := token.Create(ctx, result.Email)
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create JWT"}
+		x.Error(&types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create JWT"})
 		return
 	}
 
@@ -85,15 +94,15 @@ func processor(w http.ResponseWriter, r *http.Request, input *Body, output chan<
 		"token": jwt,
 	}
 
-	cookies.Secure(w, "token", jwt)
+	cookies.Secure(x.Writer(), "token", jwt)
 
-	output <- &types.Response{Code: http.StatusCreated, Payload: payload}
+	x.Complete(&types.Response{Code: http.StatusCreated, Payload: payload})
 
 	return
 }
 
 var Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	input.Process(w, r, v, processor)
+	handler.Validate(w, r, v, processor)
 
 	return
 })

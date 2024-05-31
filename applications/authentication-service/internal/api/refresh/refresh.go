@@ -11,7 +11,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/x-ethr/server/cookies"
-	"github.com/x-ethr/server/handler/output"
+	"github.com/x-ethr/server/handler"
 	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/telemetry"
@@ -21,10 +21,10 @@ import (
 	"authentication-service/internal/token"
 )
 
-func processor(w http.ResponseWriter, r *http.Request, output chan<- *types.Response, exception chan<- *types.Exception, options *types.Options) {
+func processor(x *types.CTX) {
 	const name = "refresh"
 
-	ctx := r.Context()
+	ctx := x.Request().Context()
 
 	labeler := telemetry.Labeler(ctx)
 	service := middleware.New().Service().Value(ctx)
@@ -36,19 +36,19 @@ func processor(w http.ResponseWriter, r *http.Request, output chan<- *types.Resp
 
 	var tokenstring = ""
 
-	cookie, e := r.Cookie("token")
+	cookie, e := x.Request().Cookie("token")
 	if e != nil {
 		c = false
 
-		authorization := r.Header.Get("Authorization")
+		authorization := x.Request().Header.Get("Authorization")
 		if authorization == "" && errors.Is(e, http.ErrNoCookie) {
 			labeler.Add(attribute.Bool("error", true))
-			exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Valid Authorization, Cookie Not Found", Source: e}
+			x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Valid Authorization, Cookie Not Found", Source: e})
 			return
 		} else if authorization == "" {
 			e = fmt.Errorf("null authorization header and unknown cookie error: %w", e)
 			labeler.Add(attribute.Bool("error", true))
-			exception <- &types.Exception{Code: http.StatusBadRequest, Message: "Null Authorization Header & Unknown Cookie Error", Source: e}
+			x.Error(&types.Exception{Code: http.StatusBadRequest, Message: "Null Authorization Header & Unknown Cookie Error", Source: e})
 			return
 		}
 
@@ -56,7 +56,7 @@ func processor(w http.ResponseWriter, r *http.Request, output chan<- *types.Resp
 		if len(partials) != 2 || partials[0] != "Bearer" {
 			e := fmt.Errorf("invalid authorization header format: %s", strings.Join(partials, " "))
 			labeler.Add(attribute.Bool("error", true))
-			exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Invalid Authorization Format", Source: e}
+			x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Invalid Authorization Format", Source: e})
 			return
 		}
 
@@ -76,36 +76,36 @@ func processor(w http.ResponseWriter, r *http.Request, output chan<- *types.Resp
 		switch {
 		case errors.Is(e, jwt.ErrTokenMalformed):
 			span.RecordError(e, trace.WithStackTrace(false))
-			exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Malformed JWT Token", Source: e}
+			x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Malformed JWT Token", Source: e})
 			return
 		case errors.Is(e, jwt.ErrTokenSignatureInvalid):
 			span.RecordError(e, trace.WithStackTrace(false))
-			exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Invalid JWT Token Signature", Source: e}
+			x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Invalid JWT Token Signature", Source: e})
 			return
 		case errors.Is(e, jwt.ErrTokenExpired):
 			span.RecordError(e, trace.WithStackTrace(false))
-			exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Expired JWT Token", Source: e}
+			x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Expired JWT Token", Source: e})
 			return
 		case errors.Is(e, jwt.ErrTokenNotValidYet):
 			span.RecordError(e, trace.WithStackTrace(false))
-			exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Invalid Future JWT Token", Source: e}
+			x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Invalid Future JWT Token", Source: e})
 			return
 		default:
 			span.RecordError(e, trace.WithStackTrace(true))
-			exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Unhandled JWT Error", Source: e}
+			x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Unhandled JWT Error", Source: e})
 			return
 		}
 	}
 
 	slog.InfoContext(ctx, "Token Structure", slog.Any("jwt-header(s)", jwttoken.Header), slog.Any("jwt-claims", jwttoken.Claims))
 	if !(c) { // --> regardless of outcome, because client doesn't have cookie but we have a jwttoken, set it.
-		cookies.Secure(w, "token", tokenstring)
+		cookies.Secure(x.Writer(), "token", tokenstring)
 	}
 
 	expiration, e := jwttoken.Claims.GetExpirationTime()
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Error While Attempting to Get JWT Expiration Time", Source: e}
+		x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Error While Attempting to Get JWT Expiration Time", Source: e})
 		return
 	}
 
@@ -113,35 +113,35 @@ func processor(w http.ResponseWriter, r *http.Request, output chan<- *types.Resp
 	if remaining > 15*time.Minute {
 		labeler.Add(attribute.Bool("error", true))
 
-		w.Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
-		w.Header().Set("X-Retry-After-Unit", "Seconds")
-		exception <- &types.Exception{Code: http.StatusTooManyRequests, Message: "Invalid Validity Duration Remaining", Source: e}
+		x.Writer().Header().Set("Retry-After", strconv.Itoa(int(remaining.Seconds())))
+		x.Writer().Header().Set("X-Retry-After-Unit", "Seconds")
+		x.Error(&types.Exception{Code: http.StatusTooManyRequests, Message: "Invalid Validity Duration Remaining", Source: e})
 		return
 	}
 
 	email, e := jwttoken.Claims.GetSubject()
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusUnauthorized, Message: "Error Attempting to Get JWT Subject", Source: e}
+		x.Error(&types.Exception{Code: http.StatusUnauthorized, Message: "Error Attempting to Get JWT Subject", Source: e})
 		return
 	}
 
 	update, e := token.Create(ctx, email)
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
-		exception <- &types.Exception{Code: http.StatusInternalServerError, Message: "Error Attempting to Generate JWT Token", Source: e}
+		x.Error(&types.Exception{Code: http.StatusInternalServerError, Message: "Error Attempting to Generate JWT Token", Source: e})
 		return
 	}
 
-	cookies.Secure(w, "token", update)
+	cookies.Secure(x.Writer(), "token", update)
 
-	output <- &types.Response{Code: http.StatusOK, Payload: update}
+	x.Complete(&types.Response{Code: http.StatusOK, Payload: update})
 
 	return
 }
 
 var Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	output.Process(w, r, processor)
+	handler.Process(w, r, processor)
 
 	return
 })

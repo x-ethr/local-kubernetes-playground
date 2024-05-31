@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/x-ethr/server"
+	"github.com/x-ethr/server/handler/metadata"
 	"github.com/x-ethr/server/logging"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/middleware/name"
@@ -25,7 +26,6 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"authentication-service/internal/api/login"
-	"authentication-service/internal/api/metadata"
 	"authentication-service/internal/api/refresh"
 	"authentication-service/internal/api/registration"
 )
