@@ -7,7 +7,7 @@ WHERE (id) = sqlc.arg(id)::bigserial
 LIMIT 1;
 
 -- name: Create :one
-INSERT INTO "User" (email, username) VALUES ($1, $2) RETURNING id, email, username;
+INSERT INTO "User" (email) VALUES ($1) RETURNING id, email;
 
 -- name: Count :one
 -- Count returns 0 or 1 depending on if a User record matching the provided email exists.

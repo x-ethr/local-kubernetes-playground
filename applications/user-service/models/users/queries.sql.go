@@ -63,24 +63,18 @@ func (q *Queries) Count(ctx context.Context, email string) (int64, error) {
 }
 
 const create = `-- name: Create :one
-INSERT INTO "User" (email, username) VALUES ($1, $2) RETURNING id, email, username
+INSERT INTO "User" (email) VALUES ($1) RETURNING id, email
 `
 
-type CreateParams struct {
-	Email    string  `db:"email" json:"email"`
-	Username *string `db:"username" json:"username"`
-}
-
 type CreateRow struct {
-	ID       int64   `db:"id" json:"id"`
-	Email    string  `db:"email" json:"email"`
-	Username *string `db:"username" json:"username"`
+	ID    int64  `db:"id" json:"id"`
+	Email string `db:"email" json:"email"`
 }
 
-func (q *Queries) Create(ctx context.Context, arg *CreateParams) (*CreateRow, error) {
-	row := q.db.QueryRow(ctx, create, arg.Email, arg.Username)
+func (q *Queries) Create(ctx context.Context, email string) (*CreateRow, error) {
+	row := q.db.QueryRow(ctx, create, email)
 	var i CreateRow
-	err := row.Scan(&i.ID, &i.Email, &i.Username)
+	err := row.Scan(&i.ID, &i.Email)
 	return &i, err
 }
 

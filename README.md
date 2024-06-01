@@ -261,6 +261,29 @@ istioctl dashboard jaeger
 kubectl -n istio-system logs --since=1h istiod-6bc5bc58b4-wvhmc --follow
 ```
 
+###### Redis
+
+*Useful `kubectl` command(s)*
+
+**Logging**
+
+```bash
+kubectl --namespace caching logs --since=10m services/redis --follow
+```
+
+*Useful `redis-cli` command(s)*
+
+```bash
+redis-cli
+```
+
+**Add consumer to consumer group**
+
+```bash
+xadd demo-stream * name john email jdoe@test.com
+xadd demo-stream * tom tom@test.com
+```
+
 ## Contributions
 
 Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional details.
@@ -282,3 +305,4 @@ Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional d
 - [Example of Microservice Communication](https://supertokens.com/static/6f6a1368b9082a0347063eed943d582b/78612/jwks-flow.png)
 - [Redis Message Broker](https://semaphoreci.com/blog/redis-message-broker)
 - [Kubernetes & Redis](https://www.dragonflydb.io/guides/redis-kubernetes)
+- [Redis Streams](https://redis.io/docs/latest/develop/data-types/streams/)
