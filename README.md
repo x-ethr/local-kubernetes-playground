@@ -237,7 +237,7 @@ for i in $(seq 1 250); do
 done
 ```
 
-###### Kiali Dashboard
+###### Kiali
 
 *The following command will expose the `kiali` service and open a browser to its dashboard.*
 
@@ -245,13 +245,15 @@ done
 istioctl dashboard kiali
 ```
 
-###### Tracing Dashboard (Jaeger)
+###### Tracing (Jaeger)
 
 *The following command will expose the `jaeger` service and open a browser to its dashboard.*
 
 ```bash
 istioctl dashboard jaeger
 ```
+
+###### Istio (`istoctl`)
 
 *Useful `istoctl` command(s)*
 
