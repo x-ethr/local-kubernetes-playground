@@ -253,7 +253,7 @@ istioctl dashboard kiali
 istioctl dashboard jaeger
 ```
 
-###### Istio (`istoctl`)
+###### Istio & `istoctl`
 
 *Useful `istoctl` command(s)*
 
