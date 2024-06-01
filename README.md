@@ -29,7 +29,7 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 
 ***The Playground's Deployed Service Mesh***
 
-![istio-example](./.documentation/example-istio-service-mesh-2.png)
+![istio-example](./.documentation/example-istio-service-mesh-3.png)
 
 ## Requirements
 

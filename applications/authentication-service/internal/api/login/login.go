@@ -2,15 +2,16 @@ package login
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/x-ethr/pg"
+	"github.com/x-ethr/server"
 	"github.com/x-ethr/server/cookies"
-	"github.com/x-ethr/server/handler"
-	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/telemetry"
+	"github.com/x-ethr/server/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -18,7 +19,7 @@ import (
 	"authentication-service/models/users"
 )
 
-func processor(x *types.CTX) {
+var handle server.Handle = func(x *types.CTX) {
 	const name = "login"
 
 	ctx := x.Request().Context()
@@ -29,6 +30,8 @@ func processor(x *types.CTX) {
 
 	defer span.End()
 
+	logger := slog.With(slog.String("name", name))
+
 	generic, e := x.Input()
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
@@ -36,7 +39,9 @@ func processor(x *types.CTX) {
 		return
 	}
 
-	var input = generic.(Body)
+	var input = generic.(*Body)
+
+	logger.InfoContext(ctx, "Input", slog.Any("body", input))
 
 	cookie, e := x.Request().Cookie("token")
 	if e == nil {
@@ -85,22 +90,24 @@ func processor(x *types.CTX) {
 		return
 	}
 
-	jwt, e := token.Create(ctx, user.Email)
+	jwtstring, e := token.Create(ctx, user.Email)
 	if e != nil {
 		labeler.Add(attribute.Bool("error", true))
 		x.Error(&types.Exception{Code: http.StatusInternalServerError, Source: e, Log: "Unable to Create JWT"})
 		return
 	}
 
-	cookies.Secure(x.Writer(), "token", jwt)
+	cookies.Secure(x.Writer(), "token", jwtstring)
 
-	x.Complete(&types.Response{Code: http.StatusOK, Payload: jwt})
+	logger.DebugContext(ctx, "Successfully Generated JWT", slog.String("jwt", jwtstring))
+
+	x.Complete(&types.Response{Status: http.StatusOK, Payload: jwtstring})
 
 	return
 }
 
 var Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	handler.Validate(w, r, v, processor)
+	server.Validate[Body](w, r, v, handle)
 
 	return
 })

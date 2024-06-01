@@ -24,9 +24,22 @@ clean:
 
 update-server-package:
 	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
-		cd "$${DIRECTORY}" ;\
-		go get -u github.com/x-ethr/server ;\
-		cd "$(PWD)" ;\
+    	if ! [[ "$${DIRECTORY}" =~ ".secrets" ]]; then \
+    	    echo "$${DIRECTORY}" ;\
+			cd "$${DIRECTORY}" ;\
+			go get -u github.com/x-ethr/server ;\
+			cd "$(PWD)" ;\
+		fi \
+	done
+
+vet:
+	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
+    	if ! [[ "$${DIRECTORY}" =~ ".secrets" ]]; then \
+    	    echo "$${DIRECTORY}" ;\
+			cd "$${DIRECTORY}" ;\
+			go vet ./... ;\
+			cd "$(PWD)" ;\
+		fi \
 	done
 
 reset-versions:

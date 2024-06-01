@@ -10,18 +10,18 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/x-ethr/server"
 	"github.com/x-ethr/server/cookies"
-	"github.com/x-ethr/server/handler"
-	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/telemetry"
+	"github.com/x-ethr/server/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"authentication-service/internal/token"
 )
 
-func processor(x *types.CTX) {
+var handle server.Handle = func(x *types.CTX) {
 	const name = "refresh"
 
 	ctx := x.Request().Context()
@@ -66,8 +66,6 @@ func processor(x *types.CTX) {
 		span.AddEvent("cookie-refresh-request")
 		tokenstring = cookie.Value
 	}
-
-	slog.DebugContext(ctx, "JWT Token", tokenstring)
 
 	jwttoken, e := token.Verify(ctx, tokenstring)
 	if e != nil {
@@ -135,13 +133,13 @@ func processor(x *types.CTX) {
 
 	cookies.Secure(x.Writer(), "token", update)
 
-	x.Complete(&types.Response{Code: http.StatusOK, Payload: update})
+	x.Complete(&types.Response{Status: http.StatusOK, Payload: update})
 
 	return
 }
 
 var Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	handler.Process(w, r, processor)
+	server.Process(w, r, handle)
 
 	return
 })

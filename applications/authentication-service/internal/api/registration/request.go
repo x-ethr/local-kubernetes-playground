@@ -2,7 +2,7 @@ package registration
 
 import (
 	"github.com/go-playground/validator/v10"
-	"github.com/x-ethr/server/handler/types"
+	"github.com/x-ethr/server/types"
 )
 
 // Body represents the handler's structured request-body

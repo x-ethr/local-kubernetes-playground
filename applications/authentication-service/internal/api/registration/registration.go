@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/x-ethr/pg"
+	"github.com/x-ethr/server"
 	"github.com/x-ethr/server/cookies"
-	"github.com/x-ethr/server/handler"
-	"github.com/x-ethr/server/handler/types"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/telemetry"
+	"github.com/x-ethr/server/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -16,7 +16,7 @@ import (
 	"authentication-service/models/users"
 )
 
-func processor(x *types.CTX) {
+var handle server.Handle = func(x *types.CTX) {
 	const name = "registration"
 
 	ctx := x.Request().Context()
@@ -44,7 +44,7 @@ func processor(x *types.CTX) {
 		return
 	}
 
-	var input = generic.(Body)
+	var input = generic.(*Body)
 
 	user := &users.CreateParams{Email: input.Email}
 
@@ -96,13 +96,13 @@ func processor(x *types.CTX) {
 
 	cookies.Secure(x.Writer(), "token", jwt)
 
-	x.Complete(&types.Response{Code: http.StatusCreated, Payload: payload})
+	x.Complete(&types.Response{Status: http.StatusCreated, Payload: payload})
 
 	return
 }
 
 var Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	handler.Validate(w, r, v, processor)
+	server.Validate[Body](w, r, v, handle)
 
 	return
 })

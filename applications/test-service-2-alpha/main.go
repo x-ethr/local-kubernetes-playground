@@ -21,11 +21,11 @@ import (
 	"github.com/x-ethr/server/middleware/name"
 	"github.com/x-ethr/server/middleware/servername"
 	"github.com/x-ethr/server/middleware/timeout"
+	"github.com/x-ethr/server/middleware/tracing"
 	"github.com/x-ethr/server/middleware/versioning"
 	"github.com/x-ethr/server/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -38,10 +38,6 @@ var service string = "service"
 // version is a dynamically linked string value - defaults to "development" - which represents the service's version.
 var version string = "development" // production builds have version dynamically linked
 
-var prefix = map[string]string{
-	(version): "v1", // default version prefix
-}
-
 // ctx, cancel represent the server's runtime context and cancellation handler.
 var ctx, cancel = context.WithCancel(context.Background())
 
@@ -52,48 +48,43 @@ var (
 	tracer = otel.Tracer(service)
 )
 
+var logger *slog.Logger
+
 func main() {
-	// Create an instance of the custom handler
-	mux := server.New()
+	middlewares := server.Middleware()
 
-	mux.Middleware(middleware.New().Path().Middleware)
-	mux.Middleware(middleware.New().Envoy().Middleware)
-	mux.Middleware(middleware.New().Timeout().Configuration(func(options *timeout.Settings) {
-		options.Timeout = 30 * time.Second
-	}).Middleware)
+	middlewares.Add(middleware.New().Path().Middleware)
+	middlewares.Add(middleware.New().Envoy().Middleware)
+	middlewares.Add(middleware.New().Timeout().Configuration(func(options *timeout.Settings) { options.Timeout = 30 * time.Second }).Middleware)
+	middlewares.Add(middleware.New().Server().Configuration(func(options *servername.Settings) { options.Server = header }).Middleware)
+	middlewares.Add(middleware.New().Service().Configuration(func(options *name.Settings) { options.Service = service }).Middleware)
+	middlewares.Add(middleware.New().Version().Configuration(func(options *versioning.Settings) { options.Version.Service = version }).Middleware)
+	middlewares.Add(middleware.New().Telemetry().Middleware)
 
-	mux.Middleware(middleware.New().Server().Configuration(func(options *servername.Settings) {
-		options.Server = header
-	}).Middleware)
+	middlewares.Add(middleware.New().Tracer().Configuration(func(options *tracing.Settings) { options.Tracer = tracer }).Middleware)
 
-	mux.Middleware(middleware.New().Service().Configuration(func(options *name.Settings) {
-		options.Service = service
-	}).Middleware)
+	mux := http.NewServeMux()
 
-	mux.Middleware(middleware.New().Version().Configuration(func(options *versioning.Settings) {
+	mux.HandleFunc("GET /health", server.Health)
 
-		options.Version.Service = version
-	}).Middleware)
+	mux.Handle("GET /", otelhttp.WithRouteTag("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		const name = "metadata"
 
-	mux.Middleware(middleware.New().Telemetry().Middleware)
+		ctx := r.Context()
 
-	mux.Register("GET /health", server.Health)
+		service := middleware.New().Service().Value(ctx)
+		ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(service).Start(ctx, name)
 
-	mux.Register("GET /", func(w http.ResponseWriter, r *http.Request) {
-		attributes := trace.WithAttributes(attribute.String("component", r.URL.Path))
-		ctx, span := tracer.Start(r.Context(), fmt.Sprintf("%s-request-handler", service), trace.WithSpanKind(trace.SpanKindServer), trace.WithLinks(trace.LinkFromContext(ctx)), attributes)
 		defer span.End()
 
 		channel := make(chan map[string]interface{}, 1)
 
-		var process = func(ctx context.Context, attributes trace.SpanStartEventOption, c chan map[string]interface{}) {
+		var process = func(ctx context.Context, c chan map[string]interface{}) {
 			var a, b map[string]interface{}
 
 			client := otelhttp.DefaultClient
 
 			{
-				ctx, span := tracer.Start(ctx, fmt.Sprintf("%s - request - test-service-2-alpha-derivative-1", service), trace.WithSpanKind(trace.SpanKindClient), trace.WithLinks(trace.LinkFromContext(ctx)), attributes)
-				defer span.End()
 				request, e := http.NewRequestWithContext(ctx, "GET", "http://test-service-2-alpha-derivative-1.development.svc.cluster.local:8080", nil)
 				if e != nil {
 					slog.ErrorContext(ctx, "Error While Calling Internal Service", slog.String("error", e.Error()))
@@ -118,8 +109,6 @@ func main() {
 			}
 
 			{
-				ctx, span := tracer.Start(ctx, fmt.Sprintf("%s - request - test-service-2-alpha-derivative-2", service), trace.WithSpanKind(trace.SpanKindClient), trace.WithLinks(trace.LinkFromContext(ctx)), attributes)
-				defer span.End()
 				request, e := http.NewRequestWithContext(ctx, "GET", "http://test-service-2-alpha-derivative-2.development.svc.cluster.local:8080", nil)
 				if e != nil {
 					slog.ErrorContext(ctx, "Error While Calling Internal Service", slog.String("error", e.Error()))
@@ -131,12 +120,12 @@ func main() {
 
 				// response, e := otelhttp.Get(ctx, "http://test-service-2-alpha-derivative-2.development.svc.cluster.local:8080")
 				response, e := client.Do(request)
-				defer response.Body.Close()
-
 				if e := json.NewDecoder(response.Body).Decode(&b); e != nil {
 					http.Error(w, "unable to decode response body to normalized data structure", http.StatusInternalServerError)
 					return
 				}
+
+				defer response.Body.Close()
 			}
 
 			var response = make(map[string]interface{})
@@ -156,7 +145,7 @@ func main() {
 			c <- payload
 		}
 
-		go process(ctx, attributes, channel)
+		go process(ctx, channel)
 
 		select {
 		case <-ctx.Done():
@@ -170,12 +159,12 @@ func main() {
 
 			return
 		}
-	})
+	})))
 
 	// Start the HTTP server
 	slog.Info("Starting Server ...", slog.String("local", fmt.Sprintf("http://localhost:%s", *(port))))
 
-	api := server.Server(ctx, mux, *port)
+	api := server.Server(ctx, mux, middlewares, *port)
 
 	// Issue Cancellation Handler
 	server.Interrupt(ctx, cancel, api)
@@ -190,6 +179,7 @@ func main() {
 			options.Logs.Local = true
 		}
 	})
+
 	if e != nil {
 		panic(e)
 	}
@@ -223,7 +213,7 @@ func init() {
 	}
 
 	logging.Level(level)
-
+	slog.SetLogLoggerLevel(level)
 	if service == "service" && os.Getenv("CI") != "true" {
 		_, file, _, ok := runtime.Caller(0)
 		if ok {
@@ -232,6 +222,6 @@ func init() {
 	}
 
 	handler := logging.Logger(func(o *logging.Options) { o.Service = service })
-	logger := slog.New(handler)
+	logger = slog.New(handler)
 	slog.SetDefault(logger)
 }

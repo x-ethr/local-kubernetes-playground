@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/x-ethr/server"
-	"github.com/x-ethr/server/handler/metadata"
 	"github.com/x-ethr/server/logging"
+	"github.com/x-ethr/server/metadata"
 	"github.com/x-ethr/server/middleware"
 	"github.com/x-ethr/server/middleware/name"
 	"github.com/x-ethr/server/middleware/servername"
