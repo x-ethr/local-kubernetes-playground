@@ -3,11 +3,12 @@ module authentication-service
 go 1.22.3
 
 require (
-	github.com/go-playground/validator/v10 v10.20.0
+	github.com/go-playground/validator/v10 v10.21.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/jackc/pgx/v5 v5.6.0
-	github.com/x-ethr/pg v0.1.5
-	github.com/x-ethr/server v0.5.1
+	github.com/x-ethr/levels v0.1.2
+	github.com/x-ethr/pg v0.1.7
+	github.com/x-ethr/server v0.5.11
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0
 	go.opentelemetry.io/otel v1.27.0
 	go.opentelemetry.io/otel/trace v1.27.0

@@ -13,15 +13,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/term"
 
-	"redis-streams/internal/levels"
+	"github.com/redis/go-redis/v9"
+	"github.com/x-ethr/levels"
+
+	"redis-streams/internal/exception"
 )
 
 const count = 1
-const stream = "demo-stream"
-const group = "demo-group"
+const stream = "user-service"
+const group = "poller"
 
 var consumer string = os.Getenv("CONSUMER")
 var level string = os.Getenv("LOG_LEVEL")
@@ -44,20 +46,7 @@ func init() {
 		os.Exit(1)
 	}
 
-	switch level {
-	case "TRACE":
-		l = levels.Trace
-	case "DEBUG":
-		l = slog.LevelDebug
-	case "INFO":
-		l = slog.LevelInfo
-	case "WARN":
-		l = slog.LevelWarn
-	case "ERROR":
-		l = slog.LevelError
-	default:
-		panic("unexpected runtime evaluation of logging level has occurred")
-	}
+	l = levels.String(level)
 
 	logger()
 }
@@ -66,17 +55,17 @@ func logger() {
 	slog.SetLogLoggerLevel(l)
 
 	options := &slog.HandlerOptions{
+		Level: l,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == (slog.LevelKey) && a.Value.String() == "DEBUG-4" {
-				a.Value = slog.StringValue("TRACE")
-			} else if a.Key == slog.TimeKey {
+			a = levels.Attributes(groups, a)
+
+			if a.Key == slog.TimeKey {
 				value := a.Value.Time().Format("Jan 02 15:04:05.000")
 				a.Value = slog.StringValue(value)
 			}
 
 			return a
 		},
-		Level: l,
 	}
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, options).WithAttrs([]slog.Attr{slog.String("stream", stream), slog.String("group", group), slog.String("consumer", consumer)})))
@@ -114,22 +103,16 @@ func main() {
 
 	select {
 	case <-ctx.Done():
-
 	default:
-		Poller(ctx, client)
+		Poll(ctx, client)
 	}
 }
 
-func Poller(ctx context.Context, client *redis.Client) {
+func Poll(ctx context.Context, client *redis.Client) {
+	read := &redis.XReadGroupArgs{Group: group, Streams: []string{stream, ">"}, Consumer: consumer, Count: count, Block: time.Second * 5, NoAck: false}
+
 	for {
-		result, err := client.XReadGroup(ctx, &redis.XReadGroupArgs{
-			Group:    group,
-			Streams:  []string{stream, ">"},
-			Consumer: consumer,
-			Count:    count,
-			Block:    time.Second * 5,
-			NoAck:    false,
-		}).Result()
+		result, err := client.XReadGroup(ctx, read).Result()
 
 		if err != nil {
 			if errors.Is(err, redis.Nil) {
@@ -138,7 +121,11 @@ func Poller(ctx context.Context, client *redis.Client) {
 				continue
 			} else if strings.Contains(err.Error(), "NOGROUP") {
 				slog.WarnContext(ctx, "Group Doesn't Exist - Re-Creating", slog.String("group", group))
-				client.XGroupCreateMkStream(ctx, stream, group, "$")
+				if e := client.XGroupCreateMkStream(ctx, stream, group, "$").Err(); e != nil {
+					slog.ErrorContext(ctx, "Fatal Exception - Unable to Create Stream-Group", slog.String("error", e.Error()))
+					panic(e)
+				}
+
 				continue
 			} else if errors.Is(err, context.Canceled) {
 				slog.InfoContext(ctx, "Signal Received - Closing the Poller")
@@ -149,8 +136,6 @@ func Poller(ctx context.Context, client *redis.Client) {
 			panic(err)
 		}
 
-		fmt.Println("result", len(result))
-
 		total, e := client.XLen(ctx, stream).Result()
 		if e != nil {
 			slog.ErrorContext(ctx, "Fatal Error has Occurred While Reading XLEN", slog.String("error", e.Error()))
@@ -159,12 +144,22 @@ func Poller(ctx context.Context, client *redis.Client) {
 
 		slog.DebugContext(ctx, "Total Stream Size", slog.Int64("value", total))
 
-		// --> should always be 1
-		messages := result[count-1].Messages
-		// --> should always be 1
-		message := messages[count-1]
+		var message *redis.XMessage
+		if len(result) == count && len(result[0].Messages) == count {
+			message = &result[0].Messages[0]
+		}
+
+		if message == nil {
+			e := exception.New().Message().Count()
+			slog.ErrorContext(ctx, "Fatal Runtime Error - Unexpected Message Count", slog.Int("result", len(result)), slog.String("error", e.Error()))
+			panic(e)
+		}
+
+		slog.Log(ctx, levels.Trace, "Message Data", slog.Any("message", message))
 
 		time.Sleep(time.Second * 5)
+
+		slog.Log(ctx, levels.Trace, "Claiming Message (XAck)", slog.Any("id", message.ID))
 
 		err = client.XAck(ctx, stream, group, message.ID).Err()
 		if err != nil {
@@ -172,15 +167,33 @@ func Poller(ctx context.Context, client *redis.Client) {
 			panic(e)
 		}
 
-		fmt.Println("got data from stream -", message.Values)
+		slog.Log(ctx, levels.Trace, "Deleting Message (XDel)", slog.Any("id", message.ID))
 
 		err = client.XDel(ctx, stream, message.ID).Err()
 		if err != nil {
 			slog.ErrorContext(ctx, "Fatal Error has Occurred Attempting to Delete Message", slog.String("id", message.ID), slog.String("error", e.Error()))
 			panic(e)
 		}
+	}
+}
 
-		// fmt.Println("acknowledged message", message.ID)
+func Process(ctx context.Context, message *redis.XMessage) error {
+	slog.Log(ctx, levels.Trace, "Processing Message", slog.String("id", message.ID))
+
+	var target string
+	if v, ok := message.Values["type"]; ok {
+		target = v.(string)
+	}
+
+	if target == "" {
+		e := errors.New("key \"type\" not found in stream message")
+		slog.ErrorContext(ctx, "Key (\"type\") Not Found in Stream Message", slog.String("error", e.Error()))
+		return e
+	}
+
+	switch target {
+	case "registration": // new user registration
+
 	}
 }
 
@@ -196,7 +209,7 @@ func Interrupt(ctx context.Context, cancel context.CancelFunc, client *redis.Cli
 			fmt.Print("\r")
 		}
 
-		slog.InfoContext(ctx, "Initializing Server Shutdown ...")
+		slog.Log(ctx, levels.Trace, "Initializing Server Shutdown")
 
 		// Shutdown signal with grace period of 30 seconds
 		shutdown, timeout := context.WithTimeout(ctx, 30*time.Second)
@@ -210,11 +223,15 @@ func Interrupt(ctx context.Context, cancel context.CancelFunc, client *redis.Cli
 			}
 		}()
 
+		slog.Log(ctx, levels.Trace, "Deleting Consumer")
+
 		// --> before the connection is closed, remove the consumer
 		if e := client.XGroupDelConsumer(ctx, stream, group, consumer).Err(); e != nil {
 			slog.ErrorContext(ctx, "Fatal Error While Removing Consumer", slog.String("error", e.Error()))
 			panic(e)
 		}
+
+		slog.Log(ctx, levels.Trace, "Closing Redis Client")
 
 		e := client.Close()
 		if e != nil {
@@ -222,7 +239,7 @@ func Interrupt(ctx context.Context, cancel context.CancelFunc, client *redis.Cli
 			panic(e)
 		}
 
-		slog.DebugContext(ctx, "Successfully Removed Consumer")
+		slog.Log(ctx, levels.Trace, "Successfully Removed Consumer")
 
 		slog.InfoContext(ctx, "Successfully Closed Redis Client")
 

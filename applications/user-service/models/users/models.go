@@ -140,7 +140,7 @@ type User struct {
 	AccountType        UserAccountType        `db:"account-type" json:"account-type"`
 	Email              string                 `db:"email" json:"email"`
 	Username           *string                `db:"username" json:"username"`
-	Avatar             string                 `db:"avatar" json:"avatar"`
+	Avatar             *string                `db:"avatar" json:"avatar"`
 	VerificationStatus UserVerificationStatus `db:"verification-status" json:"verification-status"`
 	Marketing          bool                   `db:"marketing" json:"marketing"`
 	Creation           pgtype.Timestamptz     `db:"creation" json:"creation"`

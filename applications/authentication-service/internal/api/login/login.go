@@ -1,7 +1,6 @@
 package login
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -72,9 +71,15 @@ var handle server.Handle = func(x *types.CTX) {
 		labeler.Add(attribute.Bool("error", true))
 		x.Error(&types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Check if User Exist(s)", Source: e})
 		return
-	} else if count == 0 {
-		x.Error(&types.Exception{Code: http.StatusNotFound, Message: "User Not Found", Source: fmt.Errorf("user not found: %s", input.Email)})
-		return
+	} else if count == 0 { // --> create a new user
+		tx, e := connection.Begin(ctx)
+		if e != nil {
+			pg.Disconnect(ctx, connection, tx)
+
+			labeler.Add(attribute.Bool("error", true))
+			x.Error(&types.Exception{Code: http.StatusInternalServerError, Log: "Unable to Begin a Database Transaction", Source: e})
+			return
+		}
 	}
 
 	user, e := users.New().Get(ctx, connection, input.Email)

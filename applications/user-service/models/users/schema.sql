@@ -30,7 +30,7 @@ CREATE TABLE "User"
 
     "username"            varchar(255)               default NULL
         CONSTRAINT "user-username-unique-constraint" unique,
-    "avatar"              text                       default '/client-assets/users/avatars/default/avatar.png' not null,
+    "avatar"              text                       default NULL,
     "verification-status" "user-verification-status" default 'PENDING'                                         not null,
 
     "marketing"           boolean                    default true                                              not null,

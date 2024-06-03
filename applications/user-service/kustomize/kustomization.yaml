@@ -4,9 +4,10 @@ namespace: development
 images:
     - name: service:latest
       newName: localhost:5050/user-service
-      newTag: 0.0.43
+      newTag: 0.0.62
 resources:
     - application.yaml
+    - authorization-policy.yaml
 secretGenerator:
     - namespace: development
       name: user-service-postgres-secret

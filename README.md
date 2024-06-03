@@ -288,6 +288,12 @@ xadd demo-stream * tom tom@test.com
 
 Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional details.
 
+## Debugging
+
+###### (upstream_reset_before_response_started{connection_termination})
+
+Restart the Istio API Gateway Deployment
+
 ## External Reference(s)
 
 - [Official Schema Store](https://github.com/SchemaStore/schemastore/tree/master/src/schemas/json)

@@ -66,7 +66,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("GET /", otelhttp.WithRouteTag("/", metadata.Handler))
+	mux.Handle("/", otelhttp.WithRouteTag("/", metadata.Handler))
 
 	mux.Handle("POST /register", otelhttp.WithRouteTag("/register", registration.Handler))
 	mux.Handle("POST /refresh", otelhttp.WithRouteTag("/refresh", refresh.Handler))

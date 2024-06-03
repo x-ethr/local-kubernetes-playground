@@ -158,6 +158,29 @@ spec:
                     kind: Service
                     weight: 100
                     port: 8080
+        -   matches:
+                -   path:
+                        type: Exact
+                        value: /v1/users/register
+                -   path:
+                        type: Exact
+                        value: /v1/users/avatar
+            filters:
+                -   type: URLRewrite
+                    urlRewrite:
+                        path:
+                            type: ReplaceFullPath
+                            replaceFullPath: /
+                -   type: RequestHeaderModifier
+                    requestHeaderModifier:
+                        add:
+                            -   name: "X-API-Version"
+                                value: "v1"
+            backendRefs:
+                -   name: user-service
+                    kind: Service
+                    weight: 100
+                    port: 8080
 
 #---
 #apiVersion: autoscaling/v2

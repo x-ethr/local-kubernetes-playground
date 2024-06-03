@@ -25,6 +25,9 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/x-ethr/server/metadata"
+
+	"user-service/internal/api/avatar"
+	"user-service/internal/api/registration"
 )
 
 // header is a dynamically linked string value - defaults to "server" - which represents the server name.
@@ -71,7 +74,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /", metadata.Handler)
+	mux.HandleFunc("/", metadata.Handler)
+	mux.HandleFunc("POST /register", registration.Handler)
+	mux.HandleFunc("PATCH /avatar", avatar.Patch)
 
 	mux.HandleFunc("GET /health", server.Health)
 
