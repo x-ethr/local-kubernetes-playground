@@ -4,7 +4,7 @@ go 1.22.3
 
 require (
 	github.com/x-ethr/go-http-server/v2 v2.0.4
-	github.com/x-ethr/middleware v0.1.2
+	github.com/x-ethr/middleware v0.1.3
 	github.com/x-ethr/telemetry v0.1.2
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0
 	go.opentelemetry.io/otel v1.27.0
