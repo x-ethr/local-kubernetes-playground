@@ -148,67 +148,11 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     bash ./scripts/registry.bash
     ```
 10. Wait for the various resources to reconcile successfully.
-11. Generate ECDSA key(s) and a jwt signing key all of `development`.
-    ```bash
-    ethr-cli ecdsa --mkdir --file "./applications/.secrets/ecdsa"
-    ethr-cli random token --length 32 > "./applications/.secrets/jwt-signing-key"
-    ```
-12. Initialize the kubernetes gateway and primary `development` resource(s).
+11. Initialize the kubernetes gateway and primary `development` resource(s).
     ```bash
     kubectl apply --kustomize ./applications
     ```
-13. Deploy redis.
-    ```bash
-    kubectl apply --kustomize ./kustomize/redis --wait
-    kubectl port-forward --namespace caching services/redis 6379:6379
-    ```
-14. Setup and deploy the database(s).
-    ```bash
-    mkdir -p ./kustomize/database/.secrets
-
-    printf "%s" "postgres" > ./kustomize/database/.secrets/POSTGRES_DB
-    printf "%s" "api-service-user" > ./kustomize/database/.secrets/POSTGRES_USER
-    printf "%s" "$(openssl rand -base64 16)" > ./kustomize/database/.secrets/POSTGRES_PASSWORD
-    
-    mkdir -p ./applications/user-service/kustomize/.secrets
-    cp -f ./kustomize/database/.secrets/POSTGRES_USER ./applications/user-service/kustomize/.secrets/PGUSER
-    cp -f ./kustomize/database/.secrets/POSTGRES_PASSWORD ./applications/user-service/kustomize/.secrets/PGPASSWORD
-    printf "%s" "user-service" > ./applications/user-service/kustomize/.secrets/PGDATABASE
-    
-    mkdir -p ./applications/authentication-service/kustomize/.secrets
-    cp -f ./kustomize/database/.secrets/POSTGRES_USER ./applications/authentication-service/kustomize/.secrets/PGUSER
-    cp -f ./kustomize/database/.secrets/POSTGRES_PASSWORD ./applications/authentication-service/kustomize/.secrets/PGPASSWORD
-    printf "%s" "authentication-service" > ./applications/authentication-service/kustomize/.secrets/PGDATABASE
-    
-    function uri() {
-        printf "%s:%s:%s:%s:%s" "localhost" "5432" "postgres" "$(head ./kustomize/database/.secrets/POSTGRES_USER)" "$(head ./kustomize/database/.secrets/POSTGRES_PASSWORD)"
-    }
-    
-    printf "%s" "$(uri)" > ~/.pgpass && chmod 600 ~/.pgpass
-
-    kubectl apply --kustomize ./kustomize/database --wait
-    
-    sleep 5.0 && kubectl --namespace database logs --all-containers services/postgres
-    
-    kubectl rollout status --namespace database deployment postgres
-    ```
-15. Port-forward the database.
-    ```bash
-    kubectl port-forward --namespace database services/postgres 5432:5432
-    ```
-16. Create service-specific databases (in a
-    true [microservice](https://microservices.io/patterns/data/database-per-service.html) environment, such a setup
-    likely would different).
-    ```bash
-    psql -h "localhost" -U "api-service-user" -p "5432" "postgres"
-    ```
-
-    ```postgresql
-    CREATE DATABASE "user-service" WITH OWNER = "api-service-user";
-    CREATE DATABASE "authentication-service" WITH OWNER = "api-service-user";
-    ```
-17. Execute the various `schema.sql` files listed throughout the `./applications/**/models` directories.
-18. Deploy all service(s).
+12. Deploy all service(s).
     ```bash
     make -C ./applications
     ```

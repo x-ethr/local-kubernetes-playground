@@ -1,8 +1,0 @@
-kind: Kustomization
-apiVersion: kustomize.config.k8s.io/v1beta1
-images:
-    - name: service:latest
-      newName: localhost:5050/test-service-2-alpha
-      newTag: 0.0.4
-resources:
-    - application.yaml
