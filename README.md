@@ -47,18 +47,8 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [`istioctl`](https://istio.io/latest/docs/setup/getting-started/)
 - [`ethr-cli`](https://github.com/x-ethr/ethr-cli)
-- [`aws-cli`](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - [`flux`](https://fluxcd.io/flux/get-started/)
 - [`psql`](https://www.postgresql.org/download/)
-- [Node.js + `npm`](https://nodejs.org/en/download/package-manager)
-
-###### External-Provider(s)
-
-Setup relating to AWS account(s) and related requirements are far outside scope of the project.
-
-- [Flux local setup](https://fluxcd.io/flux/get-started/)
-
-- GitHub PAT
 
 ###### Optional(s)
 
