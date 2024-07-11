@@ -1,8 +1,7 @@
 # `local-kubernetes-playground`
 
 Software engineers at ETHR previously used a variation of the following project as a playground for software
-development, automation testing,
-research, and for demonstrating proof-of-concepts.
+development, automation testing, research, and for demonstrating proof-of-concepts.
 
 This playground was the motivation behind establishing `x-ethr` and its related open-source repositories.
 
@@ -35,8 +34,7 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 
 > [!IMPORTANT]
 > Usage, requirements, and documentation was vetted on a Mac Studio, M1 Max 2022 on MacOS, Sonoma 14.5. Other systems
-> are likely subject to
-> incompatibilities.
+> are likely subject to incompatibilities.
 
 ###### System
 
@@ -62,11 +60,6 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
 
 - GitHub PAT
 
-- A valid AWS account
-    - A configured `default` profile
-    - Secrets in AWS SecretsManager for local development purposes. See the scripts' sections in [usage](#usage) for
-      details.
-
 ###### Optional(s)
 
 - [OpenLens](https://github.com/MuhammedKalkan/OpenLens) - Kubernetes UI Dashboard
@@ -77,7 +70,7 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
 > During the first minute or two, there may be a few warnings that surface. Due to Kubernetes reconciliation, all errors
 > should resolve by minute three or four.
 
-1. Setup a local load-balancer.
+1. Setup a local load-balancer (within its own private terminal session).
     ```bash
     go install sigs.k8s.io/cloud-provider-kind@latest
     sudo install "$(go env --json | jq -r ".GOPATH")/bin/cloud-provider-kind" /usr/local/bin
@@ -88,44 +81,20 @@ Setup relating to AWS account(s) and related requirements are far outside scope 
     kind create cluster --config "configuration.yaml"
     kubectl config set-context "$(printf "%s-kind" "kind")"
     ```
-3. Establish bootstrap secret(s).
-    ```bash
-    mkdir -p ./kustomize/secrets/.secrets
-   
-    printf "%s" "${GITHUB_USER}" > ./kustomize/secrets/.secrets/username
-    printf "%s" "${GITHUB_TOKEN}" > ./kustomize/secrets/.secrets/password
-
-    function access-key-id() {
-        printf "%s" "$(aws secretsmanager get-secret-value --secret-id "local/external-secrets/provider/aws/credentials" --query SecretString | jq -r | jq -r ".\"aws-access-key-id\"")"
-    }
-
-    function secret-access-key() {
-        printf "%s" "$(aws secretsmanager get-secret-value --secret-id "local/external-secrets/provider/aws/credentials" --query SecretString | jq -r | jq -r ".\"aws-secret-access-key\"")"
-    }
-
-    printf "%s" "$(access-key-id)" > ./kustomize/secrets/.secrets/aws-access-key-id
-    printf "%s" "$(secret-access-key)" > ./kustomize/secrets/.secrets/aws-secret-access-key
-    
-    kubectl apply --kustomize ./kustomize/secrets --wait
-    ```
-    - Requires `aws-cli` is installed with a valid `default` profile.
-    - Assumes a secret in SecretsManager called `local/external-secrets/provider/aws/credentials` exists, and contains
-      the following contents:
-        ```
-        "{\"aws-access-key-id\":\"...\",\"aws-secret-access-key\":\"...\"}"
-        ```
-        - By no means should this secret contain credentials to Administrative function(s). Lock this API user's access
-          down, as it's really only for local development purposes.
+3. Verify connectivity to the cluster. 
+    - If using OpenLens, select the `kind-kind` context.
 4. Bootstrap.
     ```bash
     flux bootstrap github --repository "https://github.com/x-ethr/cluster-management" \
         --owner "x-ethr" \
         --private "false" \
         --personal "false" \
-        --path "clusters/local"
+        --path "clusters/local" \
+        --components-extra image-reflector-controller,image-automation-controller \
+            --verbose
     ```
-    - For users outside the `x-ethr` organization, fork, import, or copy
-      the https://github.com/x-ethr/cluster-management repository; or use a customized Flux GitOps project.
+    - Requires a valid GitHub [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) set as environment variables: `GITHUB_TOKEN`.
+    - For users outside the `x-ethr` organization, fork, import, or copy the https://github.com/x-ethr/cluster-management repository; or use a customized Flux GitOps project.
 5. Sync local cluster repository's `vendors`.
     ```bash
     git submodule update --remote --recursive

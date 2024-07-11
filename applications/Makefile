@@ -2,44 +2,40 @@ SUBDIRS := $(wildcard */.)
 
 PWD:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
-all :: $(SUBDIRS) deploy
+all:
+	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
+		cd "$${DIRECTORY}" ;\
+		make ;\
+		cd "$(PWD)" ;\
+	done
 
-$(SUBDIRS): deploy
-	@$(MAKE) -C $@ $(MAKECMDGOALS)
-
-deploy: apply
-
-apply:
-	kubectl apply --kustomize .
+update:
+	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
+		cd "$${DIRECTORY}" ;\
+		go get -u ./... ;\
+		go mod vendor ;\
+		cd "$(PWD)" ;\
+	done
 
 kustomize:
 	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
 		cd "$${DIRECTORY}" ;\
-		kubectl apply --wait --kustomize .
+		kubectl apply --wait --kustomize . ;\
 		cd "$(PWD)" ;\
 	done
 
 clean:
-	find . -type d -mindepth 1 -maxdepth 1 -execdir kubectl delete --force --wait --ignore-not-found --all --kustomize . \;
-
-update-server-package:
 	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
-    	if ! [[ "$${DIRECTORY}" =~ ".secrets" ]]; then \
-    	    echo "$${DIRECTORY}" ;\
-			cd "$${DIRECTORY}" ;\
-			go get -u github.com/x-ethr/server ;\
-			cd "$(PWD)" ;\
-		fi \
+		cd "$${DIRECTORY}" ;\
+		kubectl delete --wait --ignore-not-found --all --kustomize . ;\
+		cd "$(PWD)" ;\
 	done
 
 vet:
 	@for DIRECTORY in $(shell find . -type d -mindepth 1 -maxdepth 1 -print); do \
-    	if ! [[ "$${DIRECTORY}" =~ ".secrets" ]]; then \
-    	    echo "$${DIRECTORY}" ;\
-			cd "$${DIRECTORY}" ;\
-			go vet ./... ;\
-			cd "$(PWD)" ;\
-		fi \
+		cd "$${DIRECTORY}" ;\
+		go vet ./... ;\
+		cd "$(PWD)" ;\
 	done
 
 reset-versions:

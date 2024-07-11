@@ -1,0 +1,32 @@
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+    name: health-service
+spec:
+    hosts:
+        - "*"
+    gateways:
+        - api-gateway
+    exportTo:
+        -   "."
+    http:
+        -   name: "v1-routes"
+            route:
+                -   weight: 100
+                    destination:
+                        host: health-service
+                        subset: v1
+                        port:
+                            number: 8080
+                    headers:
+                        request:
+                            set:
+                                "X-API-Version": "v1"
+            rewrite:
+                uri: /
+            match:
+                -   uri:
+                        exact: /v1/health
+                -   uri:
+                        prefix: /v1/health/

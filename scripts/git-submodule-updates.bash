@@ -24,9 +24,6 @@ set -o xtrace     # (6)
 # 7. set -o braceexpand ::: Enable Brace Expansion
 # 8. set -o no-exec     ::: Bash Syntax Debugging
 
-# --> script is for demonstrating how to debug kyverno -- main() has no purpose other than keeping records of
-# ... these useful command(s)
-
 function main() {
     # --> update local submodules from remote(s)
     git submodule update --recursive --remote

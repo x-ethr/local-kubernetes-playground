@@ -1,0 +1,19 @@
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+    name: allow-authentication-service-registration-access
+spec:
+    selector:
+        matchLabels:
+            app: user-service
+    action: DENY
+    rules:
+        -   to:
+                -   operation:
+                        paths:
+                            - /register
+            from:
+                -   source:
+                        notPrincipals:
+                            - "cluster.local/ns/development/sa/authentication-service"
