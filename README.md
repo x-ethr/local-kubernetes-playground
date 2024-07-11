@@ -6,11 +6,9 @@ development, automation testing, research, and for demonstrating proof-of-concep
 This playground was the motivation behind establishing `x-ethr` and its related open-source repositories.
 
 > [!IMPORTANT]
-> The following project requires an expansive amount of knowledge around cloud-providers (AWS), development, kubernetes,
-> and overall
+> The following project requires an expansive amount of knowledge around development, kubernetes, and overall
 > systems. While the guide can be followed step-by-step to produce a fully functioning cluster, there
-> are [requirements](#requirements)
-> that would be challenging for beginners to 1. understand, 2. setup, 3. debug.
+> are [requirements](#requirements) that would otherwise be challenging for beginners to 1. understand, 2. setup, 3. debug.
 >
 > If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply
 > following the [usage](#usage) section.
@@ -18,8 +16,7 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 > Users of `local-kubernetes-playground` will involve themselves in the following disciplines:
 > - Software Engineering
 > - DevOps
-> - Cloud & Platform Engineering (AWS)
-> - Systems Administration (Kubernetes)
+> - Systems Administration
 > - GitOps
 > - Databases
 > - Security
