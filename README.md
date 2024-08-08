@@ -8,7 +8,8 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 > [!IMPORTANT]
 > The following project requires an expansive amount of knowledge around development, kubernetes, and overall
 > systems. While the guide can be followed step-by-step to produce a fully functioning cluster, there
-> are [requirements](#requirements) that would otherwise be challenging for beginners to 1. understand, 2. setup, 3. debug.
+> are [requirements](#requirements) that would otherwise be challenging for beginners to 1. understand, 2. setup, 3.
+> debug.
 >
 > If requirements are correctly met, the entirety of this project can be deployed in under five minutes by simply
 > following the [usage](#usage) section.
@@ -57,36 +58,47 @@ This playground was the motivation behind establishing `x-ethr` and its related 
 > During the first minute or two, there may be a few warnings that surface. Due to Kubernetes reconciliation, all errors
 > should resolve by minute three or four.
 
-1. Setup a local load-balancer (within its own private terminal session).
+1. Install `kind`.
     ```bash
-    go install sigs.k8s.io/cloud-provider-kind@latest
-    sudo install "$(go env --json | jq -r ".GOPATH")/bin/cloud-provider-kind" /usr/local/bin
-    sudo cloud-provider-kind
+    go install sigs.k8s.io/kind@latest
+    sudo install "$(go env --json | jq -r ".GOPATH")/bin/kind" /usr/local/bin
     ```
-2. Create a cluster via `kind`.
+1. Create a cluster via `kind`.
     ```bash
     kind create cluster --config "configuration.yaml"
     kubectl config set-context "$(printf "%s-kind" "kind")"
     ```
-3. Verify connectivity to the cluster. 
+2. Unable node(s).
+    ```bash
+    kubectl label node kind-control-plane node.kubernetes.io/exclude-from-external-load-balancers- 
+    ```
+3. Setup a local load-balancer (within its own private terminal session).
+    ```bash
+    go install sigs.k8s.io/cloud-provider-kind@latest
+    sudo install "$(go env --json | jq -r ".GOPATH")/bin/cloud-provider-kind" /usr/local/bin
+    cloud-provider-kind -v 9
+    ```
+4. Verify connectivity to the cluster.
     - If using OpenLens, select the `kind-kind` context.
-4. Bootstrap.
+5. Bootstrap.
     ```bash
     flux bootstrap github --repository "https://github.com/x-ethr/cluster-management" \
         --owner "x-ethr" \
         --private "false" \
         --personal "false" \
         --path "clusters/local" \
-        --components-extra image-reflector-controller,image-automation-controller \
-            --verbose
+        --verbose
     ```
-    - Requires a valid GitHub [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) set as environment variables: `GITHUB_TOKEN`.
-    - For users outside the `x-ethr` organization, fork, import, or copy the https://github.com/x-ethr/cluster-management repository; or use a customized Flux GitOps project.
-5. Sync local cluster repository's `vendors`.
+    - Requires a valid
+      GitHub [personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+      set as environment variables: `GITHUB_TOKEN`.
+    - For users outside the `x-ethr` organization, fork, import, or copy
+      the https://github.com/x-ethr/cluster-management repository; or use a customized Flux GitOps project.
+6. Sync local cluster repository's `vendors`.
     ```bash
     git submodule update --remote --recursive
     ```
-6. Add `kustomization.yaml` to new cluster directory (only applicable during first-time cluster setup).
+7. Add `kustomization.yaml` to new cluster directory (only applicable during first-time cluster setup).
     ```bash
     cat << EOF > ./vendors/cluster-management/clusters/local/kustomization.yaml
     apiVersion: kustomize.config.k8s.io/v1beta1
@@ -94,33 +106,23 @@ This playground was the motivation behind establishing `x-ethr` and its related 
     resources: []
     EOF
     ```
-7. Optionally, update the `Kustomization.flux-system.spec.interval` (changes each time a local cluster is bootstrapped).
-8. Push local changes to `vendors` submodules.
+8. Optionally, update the `Kustomization.flux-system.spec.interval` (changes each time a local cluster is bootstrapped).
+9. Push local changes to `vendors` submodules.
     ```bash
     git submodule foreach "git add . && git commit --message \"Git Submodule Update(s)\" && git push -u origin HEAD:main" 
     ```
-9. Start the local registry.
-    ```bash
-    bash ./scripts/registry.bash
-    ```
-10. Wait for the various resources to reconcile successfully.
-11. Initialize the kubernetes gateway and primary `development` resource(s).
-    ```bash
-    kubectl apply --kustomize ./applications
-    ```
-12. Deploy all service(s).
-    ```bash
-    make -C ./applications
-    ```
-    - *Note*: the Makefile targets in the ./applications directory will version bump all services, and requires a
-      running container registry: `localhost:5050`.
+10. Start the local registry.
+     ```bash
+     bash ./scripts/registry.bash
+     ```
+11. Wait for the various resources to reconcile successfully.
 
 ### Service-Mesh
 
 *The following command will port-forward the gateway's configured port `80` and expose it on `localhost:8080`.*
 
 ```bash
-kubectl port-forward --namespace development services/api-gateway-istio 8080:80
+kubectl port-forward --namespace development services/gateway 8080:80
 ```
 
 ###### Network Traffic
@@ -189,6 +191,12 @@ xadd demo-stream * tom tom@test.com
 Please see the [**Contributing Guide**](./CONTRIBUTING.md) file for additional details.
 
 ## Debugging
+
+###### Ingress LB Address
+
+```bash
+kubectl get --namespace istio-system svc/ingress-gateway -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
 
 ###### (upstream_reset_before_response_started{connection_termination})
 
